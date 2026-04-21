@@ -1,0 +1,117 @@
+/* ===== GLOBAL FONT (optional but recommended) ===== */
+body {
+    font-family: "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* ===== CONTAINER ===== */
+  .how-container {
+    padding: 80px 20px;
+    background: #ffffff;
+    text-align: center;
+  }
+  
+  /* ===== HEADING ===== */
+  .how-heading {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 50px;
+    color: #1e293b;
+  }
+  
+  /* ===== STEPS LAYOUT (HORIZONTAL FIX) ===== */
+  .steps {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 28px;
+  
+    max-width: 1000px;
+    margin: 0 auto;
+  
+    flex-wrap: nowrap; /* 🚀 FORCE SINGLE ROW */
+  }
+  
+  /* ===== STEP CARD ===== */
+  .step-card {
+    position: relative;
+    width: 210px;
+    min-width: 210px;
+  
+    padding: 20px;
+    border-radius: 14px;
+  
+    background: #f8fafc;
+    border: 1px solid #eef2f7;
+  
+    text-align: center;
+  
+    transition: all 0.3s ease;
+  }
+  
+  /* HOVER EFFECT */
+  .step-card:hover {
+    transform: translateY(-6px) scale(1.03);
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(94, 122, 196, 0.12);
+  }
+  
+  /* ===== ICON ===== */
+  .icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 12px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: 50%;
+    font-size: 16px;
+    color: white;
+  
+    background: linear-gradient(135deg, #5e7ac4, #3852b4);
+  }
+  
+  /* ===== TITLE ===== */
+  .step-card h3 {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #334155; /* soft dark */
+  }
+  
+  /* ===== DESCRIPTION ===== */
+  .step-card p {
+    font-size: 12.5px;
+    color: #64748b; /* light grey */
+    line-height: 1.5;
+  }
+  
+  /* ===== CONNECTOR LINE ===== */
+  .connector {
+    position: absolute;
+    top: 50%;
+    right: -28px;
+    width: 28px;
+    height: 2px;
+  
+    background: linear-gradient(
+      90deg,
+      rgba(94, 122, 196, 0.6),
+      rgba(94, 122, 196, 0.2)
+    );
+  }
+  
+  /* ===== RESPONSIVE (ONLY MOBILE) ===== */
+  @media (max-width: 900px) {
+    .steps {
+      flex-wrap: wrap; /* allow stacking only on small screens */
+    }
+  
+    .connector {
+      display: none;
+    }
+  }

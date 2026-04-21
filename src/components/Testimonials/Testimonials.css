@@ -1,0 +1,131 @@
+/* ===== CONTAINER ===== */
+.testimonials-container {
+    padding: 90px 20px;
+    background: #f8fafc;
+    text-align: center;
+  }
+  
+  /* Heading */
+  .testimonials-heading {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 50px;
+    color: #1e293b;
+  }
+  
+  /* ===== CAROUSEL WRAPPER ===== */
+  .carousel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  
+  /* ===== SCROLL AREA ===== */
+  .testimonials-grid {
+    display: flex;
+    gap: 25px;
+    overflow-x: auto;
+  
+    scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+  
+    padding: 10px;
+  }
+  
+  /* Hide scrollbar */
+  .testimonials-grid::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* ===== CARD ===== */
+  .testimonial-card {
+    min-width: 300px;
+    max-width: 300px;
+  
+    padding: 25px;
+    border-radius: 16px;
+  
+    background: white;
+    border: 1px solid #eef2f7;
+  
+    scroll-snap-align: start;
+  
+    transition: 0.3s;
+  }
+  
+  /* Hover */
+  .testimonial-card:hover {
+    transform: translateY(-8px) scale(1.03);
+    box-shadow: 0 20px 50px rgba(94, 122, 196, 0.15);
+  }
+  
+  /* Stars */
+  .stars {
+    color: #fbbf24;
+    margin-bottom: 12px;
+  }
+  
+  /* Text */
+  .testimonial-text {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 20px;
+  }
+  
+  /* User */
+  .user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  /* Avatar */
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    background: linear-gradient(135deg, #5e7ac4, #3852b4);
+    color: white;
+    font-weight: 600;
+  }
+  
+  /* ===== ARROWS ===== */
+  .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  
+    background: white;
+    border: 1px solid #e2e8f0;
+  
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  
+    cursor: pointer;
+    font-size: 22px;
+  
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Left */
+  .arrow.left {
+    left: -20px;
+  }
+  
+  /* Right */
+  .arrow.right {
+    right: -20px;
+  }
+  
+  /* Hover */
+  .arrow:hover {
+    background: #f1f5f9;
+  }

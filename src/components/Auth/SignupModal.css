@@ -1,0 +1,54 @@
+/* BACKDROP */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 30, 0.75);
+  backdrop-filter: blur(8px);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 999;
+}
+
+/* MODAL BOX */
+.modal-box {
+  width: 400px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+
+  padding: 28px;
+  position: relative;
+
+  color: #f9fafb;
+  backdrop-filter: blur(16px);
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+
+  animation: pop 0.2s ease;
+}
+
+@keyframes pop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* CLOSE BUTTON */
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #ef4444;
+}

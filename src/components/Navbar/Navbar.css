@@ -1,0 +1,134 @@
+/* 🔥 NAVBAR */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+  
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  
+    padding: 16px 40px;
+  
+    /* 🌊 LIGHT CLEAN BACKGROUND */
+    background: linear-gradient(90deg, #f8fbff, #f3f7ff);
+  
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  /* 🔥 LOGO (NO BACKGROUND AT ALL) */
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  
+    cursor: pointer;
+  }
+  
+  /* Prevent any hover bg */
+  .logo:hover {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    opacity: 0.85;
+  }
+  
+  /* "Exam" */
+  .logo-primary {
+    color: #1e293b;
+  }
+  
+  /* "Sarkar" */
+  .logo-accent {
+    color: #5e7ac4;
+    margin-left: 0px;
+  }
+  
+  /* 🔗 NAV LINKS */
+  .nav-links {
+    display: flex;
+    gap: 30px;
+  }
+  
+  .nav-links a {
+    text-decoration: none;
+    color: #475569;
+  
+    font-size: 14px;
+    font-weight: 500;
+  
+    padding-bottom: 4px;
+  
+    transition: all 0.3s ease;
+  }
+  
+  /* ✨ CLEAN PREMIUM HOVER (NO BOX) */
+  .nav-links a:hover {
+    color: #195dc9;
+    border-bottom: 2px solid #5e7ac4;
+  }
+  
+  /* 🎯 ACTIVE LINK (optional but recommended) */
+  .nav-links a.active {
+    color: #195dc9;
+    border-bottom: 2px solid #5e7ac4;
+  }
+  
+  /* ⚡ ACTIONS */
+  .nav-actions {
+    display: flex;
+    gap: 12px;
+  }
+  
+  /* LOGIN BUTTON */
+  .login {
+    background: transparent;
+    border: 1px solid rgba(94, 122, 196, 0.4);
+    color: #334155;
+  
+    padding: 8px 18px;
+    border-radius: 10px;
+  
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  
+  .login:hover {
+    background: rgba(94, 122, 196, 0.08);
+  }
+  
+  /* SIGNUP BUTTON */
+  .signup {
+    background: linear-gradient(135deg, #5e7ac4, #3852b4);
+    color: white;
+  
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: none;
+  
+    cursor: pointer;
+    font-weight: 500;
+  
+    box-shadow: 0 6px 18px rgba(94, 122, 196, 0.3);
+    transition: all 0.3s ease;
+  }
+  
+  .signup:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(94, 122, 196, 0.4);
+  }
+  
+  /* 📱 MOBILE */
+  @media (max-width: 768px) {
+    .nav-links {
+      display: none;
+    }
+  
+    .navbar {
+      padding: 14px 20px;
+    }
+  }

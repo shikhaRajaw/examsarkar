@@ -1,0 +1,122 @@
+/* 🔥 FINAL SECTION WRAPPER (footer style) */
+.whyus-section {
+    padding: 80px 20px 90px;
+  
+    background: linear-gradient(
+      180deg,
+      rgba(10, 15, 30, 0.3),
+      rgba(10, 15, 30, 0.98)
+    );
+  
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 80px;
+  }
+  
+  /* CONTAINER */
+  .whyus-container {
+    max-width: 1100px;
+    margin: auto;
+    text-align: center;
+  }
+  
+  /* HEADER */
+  .whyus-header h2 {
+    font-size: 30px;
+    color: #f9fafb;
+    margin-bottom: 8px;
+  }
+  
+  .whyus-header p {
+    color: #9ca3af;
+    font-size: 15px;
+    max-width: 600px;
+    margin: auto;
+    margin-bottom: 45px;
+    line-height: 1.5;
+  }
+  
+  /* GRID */
+  .whyus-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  
+  /* CARD */
+  .whyus-card {
+    padding: 26px 20px;
+    border-radius: 14px;
+  
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+  
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  
+    text-align: left;
+  
+    transition: all 0.3s ease;
+  }
+  
+  /* HOVER */
+  .whyus-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(94, 122, 196, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  
+  /* ICON */
+  .whyus-icon {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+  
+  /* ICON COLORS */
+  .whyus-card:nth-child(1) .whyus-icon {
+    color: #5e7ac4;
+  }
+  
+  .whyus-card:nth-child(2) .whyus-icon {
+    color: #f3be7a;
+  }
+  
+  .whyus-card:nth-child(3) .whyus-icon {
+    color: #7dd3fc;
+  }
+  
+  .whyus-card:nth-child(4) .whyus-icon {
+    color: #a78bfa;
+  }
+  
+  /* TITLE */
+  .whyus-card h3 {
+    font-size: 17px;
+    color: #f9fafb;
+    margin-bottom: 6px;
+  }
+  
+  /* DESCRIPTION */
+  .whyus-card p {
+    font-size: 14px;
+    color: #9ca3af;
+    line-height: 1.5;
+  }
+  
+  /* FOOTER NOTE */
+  .whyus-footer-note {
+    margin-top: 45px;
+    font-size: 13px;
+    color: #6b7280;
+  }
+  
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .whyus-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 500px) {
+    .whyus-grid {
+      grid-template-columns: 1fr;
+    }
+  }
