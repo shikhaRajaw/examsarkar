@@ -1,4 +1,15 @@
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+const getFallbackApiBaseUrl = () => {
+  if (typeof window === "undefined") {
+    return "http://localhost:5000";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const hostname = window.location.hostname || "localhost";
+
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || getFallbackApiBaseUrl();
 
 const request = async (path, payload) => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
