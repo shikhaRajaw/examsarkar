@@ -43,7 +43,7 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
   return (
     <div className="modal-overlay">
       <div className="modal-box">
-        <button className="close-btn" onClick={onClose}>
+        <button className="close-btn" onClick={onClose} aria-label="Close login modal" type="button">
           <FaTimes />
         </button>
 

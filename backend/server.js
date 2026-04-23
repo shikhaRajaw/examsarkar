@@ -10,9 +10,45 @@ const { database } = require("./firebaseAdmin");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const configuredOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isAllowedDevOrigin = (origin) => {
+  try {
+    const parsed = new URL(origin);
+    const { protocol, hostname } = parsed;
+
+    if (protocol !== "http:" && protocol !== "https:") {
+      return false;
+    }
+
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000"
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (configuredOrigins.includes(origin) || isAllowedDevOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS blocked for this origin."));
+    }
   })
 );
 app.use(express.json());
@@ -65,12 +101,27 @@ app.post("/api/auth/register", async (req, res) => {
     const emailKey = toEmailKey(normalizedEmail);
     const emailRef = database.ref(`usersByEmail/${emailKey}`);
     const emailSnapshot = await emailRef.get();
+    const legacyUserSnapshot = await database
+      .ref("users")
+        const emailRef = database.ref(`usersByEmail/${emailKey}`);
+        const [emailSnapshot, userEmailSnapshot] = await Promise.all([
+          emailRef.get(),
+          database
+            .ref("users")
+            .orderByChild("email")
+            .equalTo(normalizedEmail)
+            .limitToFirst(1)
+            .get()
+        ]);
+      .limitToFirst(1)
+        if (emailSnapshot.exists() || userEmailSnapshot.exists()) {
 
-    if (emailSnapshot.exists()) {
+    if (emailSnapshot.exists() || legacyUserSnapshot.exists()) {
       return res.status(409).json({ message: "This email is already registered." });
     }
 
     const uid = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
     const userRecord = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -78,13 +129,27 @@ app.post("/api/auth/register", async (req, res) => {
       phone: phone.trim(),
       passwordHash: sha256(password),
       confirmPasswordHash: sha256(confirmPassword),
-      createdAt: new Date().toISOString()
+      createdAt
     };
 
-    await database.ref().update({
-      [`users/${uid}`]: userRecord,
-      [`usersByEmail/${emailKey}`]: uid
-    });
+    const emailReservation = await emailRef.transaction((currentValue) => {
+      if (currentValue === null) {
+        return uid;
+      }
+
+      return;
+    }, false);
+
+    if (!emailReservation.committed) {
+      return res.status(409).json({ message: "This email is already registered." });
+    }
+
+    try {
+      await database.ref(`users/${uid}`).set(userRecord);
+    } catch (writeError) {
+      await emailRef.remove().catch(() => {});
+      throw writeError;
+    }
 
     return res.status(201).json({
       message: "Registration successful.",

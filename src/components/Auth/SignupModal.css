@@ -8,19 +8,23 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px 12px;
+  overflow-y: auto;
 
   z-index: 999;
 }
 
 /* MODAL BOX */
 .modal-box {
-  width: 400px;
+  width: min(400px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
 
-  padding: 28px;
+  padding: 44px 28px 24px;
   position: relative;
 
   color: #f9fafb;
@@ -39,18 +43,28 @@
 /* CLOSE BUTTON */
 .close-btn {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 10px;
+  right: 10px;
 
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(15, 23, 42, 0.65);
   border: none;
   color: #cbd5e1;
+  font-size: 16px;
+  z-index: 2;
 
   cursor: pointer;
 }
 
 .close-btn:hover {
   color: #ef4444;
+  background: rgba(15, 23, 42, 0.9);
 }
 
 .modal-box h2 {
@@ -149,12 +163,41 @@
 }
 
 @media (max-width: 520px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 10px;
+  }
+
   .modal-box {
-    width: min(92vw, 400px);
-    padding: 22px;
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 40px 16px 18px;
+    border-radius: 12px;
   }
 
   .modal-box h2 {
-    font-size: 24px;
+    font-size: 22px;
+  }
+
+  .modal-box p {
+    margin-bottom: 12px;
+  }
+
+  .modal-box form {
+    gap: 8px;
+  }
+
+  .modal-box input {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .auth-btn {
+    padding: 11px 12px;
+  }
+
+  .close-btn {
+    top: 8px;
+    right: 8px;
   }
 }
