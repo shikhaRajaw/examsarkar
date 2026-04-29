@@ -59,6 +59,25 @@ const toEmailKey = (email) =>
 const sha256 = (text) =>
   crypto.createHash("sha256").update(text || "").digest("hex");
 
+// ✅ MIDDLEWARE: Verify Token
+const verifyToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided." });
+    }
+
+    const token = authHeader.substring(7); // Remove "Bearer "
+    const tokenData = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
+
+    req.user = tokenData;
+    next();
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return res.status(401).json({ message: "Invalid token." });
+  }
+};
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     ok: true,
@@ -131,8 +150,18 @@ app.post("/api/auth/register", async (req, res) => {
       throw writeError;
     }
 
+    // ✅ CREATE TOKEN
+    const tokenData = {
+      uid,
+      email: normalizedEmail,
+      firstName: userRecord.firstName,
+      lastName: userRecord.lastName
+    };
+    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64");
+
     return res.status(201).json({
       message: "Registration successful.",
+      token,
       user: {
         uid,
         firstName: userRecord.firstName,
@@ -176,8 +205,18 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
+    // ✅ CREATE TOKEN
+    const tokenData = {
+      uid,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName
+    };
+    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64");
+
     return res.status(200).json({
       message: "Login successful.",
+      token,
       user: {
         uid,
         firstName: user.firstName,
@@ -190,6 +229,36 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Login failed. Please try again." });
+  }
+});
+
+// ✅ NEW ENDPOINT: Get User Profile
+app.get("/api/user/profile", verifyToken, async (req, res) => {
+  try {
+    const { uid } = req.user;
+
+    const userSnapshot = await database.ref(`users/${uid}`).get();
+
+    if (!userSnapshot.exists()) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const user = userSnapshot.val();
+
+    return res.status(200).json({
+      message: "Profile retrieved successfully.",
+      profile: {
+        uid,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phone,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Profile fetch error:", error);
+    return res.status(500).json({ message: "Failed to fetch profile." });
   }
 });
 
