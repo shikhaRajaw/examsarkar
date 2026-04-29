@@ -77,7 +77,7 @@ export default function TestSeriesPage() {
             </div>
           </div>
 
-          {/* 🔥 HERO BELOW */}
+          {/*  HERO BELOW */}
           <div className="hero">
             <h1>Crack UPSC with Structured Test Series</h1>
             <p>Practice daily. Analyze deeply. Improve consistently.</p>

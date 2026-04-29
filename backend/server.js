@@ -100,26 +100,6 @@ app.post("/api/auth/register", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     const emailKey = toEmailKey(normalizedEmail);
     const emailRef = database.ref(`usersByEmail/${emailKey}`);
-    const emailSnapshot = await emailRef.get();
-    const legacyUserSnapshot = await database
-      .ref("users")
-        const emailRef = database.ref(`usersByEmail/${emailKey}`);
-        const [emailSnapshot, userEmailSnapshot] = await Promise.all([
-          emailRef.get(),
-          database
-            .ref("users")
-            .orderByChild("email")
-            .equalTo(normalizedEmail)
-            .limitToFirst(1)
-            .get()
-        ]);
-      .limitToFirst(1)
-        if (emailSnapshot.exists() || userEmailSnapshot.exists()) {
-
-    if (emailSnapshot.exists() || legacyUserSnapshot.exists()) {
-      return res.status(409).json({ message: "This email is already registered." });
-    }
-
     const uid = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const userRecord = {
