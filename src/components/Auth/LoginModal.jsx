@@ -1,9 +1,12 @@
 import "./SignupModal.css";
 import { FaTimes } from "react-icons/fa";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ ADD THIS
 import { loginUser } from "../../api/authApi";
 
 export default function LoginModal({ isOpen, onClose, switchToSignup }) {
+  const navigate = useNavigate(); // ✅ ADD THIS
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -15,6 +18,8 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+
+    // clear messages while typing
     if (error) setError("");
     if (success) setSuccess("");
   };
@@ -29,8 +34,21 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
 
     try {
       setIsSubmitting(true);
+
       const user = await loginUser(form.email, form.password);
+
+      // ✅ success message
       setSuccess(`Welcome ${user.firstName || "back"}, login successful.`);
+
+      // ✅ OPTIONAL: store user in localStorage
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // ✅ CLOSE MODAL
+      onClose();
+
+      // ✅ REDIRECT TO DASHBOARD
+      navigate("/dashboard");
+
     } catch (apiError) {
       setError(apiError.message || "Login failed. Please try again.");
     } finally {
@@ -43,7 +61,14 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
   return (
     <div className="modal-overlay">
       <div className="modal-box">
-        <button className="close-btn" onClick={onClose} aria-label="Close login modal" type="button">
+
+        {/* CLOSE BUTTON */}
+        <button
+          className="close-btn"
+          onClick={onClose}
+          aria-label="Close login modal"
+          type="button"
+        >
           <FaTimes />
         </button>
 
@@ -51,6 +76,7 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
         <p>Login to continue your preparation</p>
 
         <form onSubmit={handleSubmit}>
+
           <input
             type="email"
             placeholder="Email"
@@ -65,12 +91,24 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
             onChange={(e) => handleChange("password", e.target.value)}
           />
 
-          {error ? <p className="auth-message auth-error">{error}</p> : null}
-          {success ? <p className="auth-message auth-success">{success}</p> : null}
+          {/* ERROR */}
+          {error && (
+            <p className="auth-message auth-error">{error}</p>
+          )}
 
-          <button className="auth-btn" type="submit" disabled={isSubmitting}>
+          {/* SUCCESS */}
+          {success && (
+            <p className="auth-message auth-success">{success}</p>
+          )}
+
+          <button
+            className="auth-btn"
+            type="submit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Logging In..." : "Login"}
           </button>
+
         </form>
 
         <p className="bottom-text">
@@ -79,6 +117,7 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
             Sign Up
           </span>
         </p>
+
       </div>
     </div>
   );
