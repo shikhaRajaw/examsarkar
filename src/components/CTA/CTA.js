@@ -2,7 +2,7 @@ import React from "react";
 import "./CTA.css";
 import { FaUsers, FaStar, FaClipboardCheck } from "react-icons/fa";
 
-const CTA = () => {
+const CTA = ({ onStartFreeTest, onExploreTestSeries }) => {
   return (
     <div className="cta-container">
 
@@ -41,8 +41,20 @@ const CTA = () => {
 
         {/* BUTTONS */}
         <div className="cta-buttons">
-          <button className="cta-primary">Start Free Test</button>
-          <button className="cta-secondary">Explore Test Series</button>
+          <button 
+            className="cta-primary"
+            onClick={onStartFreeTest}
+            type="button"
+          >
+            Start Free Test
+          </button>
+          <button 
+            className="cta-secondary"
+            onClick={onExploreTestSeries}
+            type="button"
+          >
+            Explore Test Series
+          </button>
         </div>
 
       </div>

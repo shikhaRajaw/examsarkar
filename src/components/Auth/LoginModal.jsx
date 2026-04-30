@@ -49,8 +49,10 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
       // ✅ CLOSE MODAL
       onClose();
 
-      // ✅ OPEN PAYMENT MODAL after login
-      try { showPaymentModal({ plan: 'Subscription', price: 499 }); } catch (e) {}
+      // ✅ REDIRECT TO DASHBOARD after login
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 500);
 
     } catch (apiError) {
       setError(apiError.message || "Login failed. Please try again.");

@@ -9,7 +9,7 @@ const images = [
   "https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
 ];
 
-export default function HeroSlider({ onSignupClick, onLoginClick }) {
+export default function HeroSlider({ onStartFreeTest, onLoginClick }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function HeroSlider({ onSignupClick, onLoginClick }) {
 
         {/* BUTTONS */}
         <div className="buttons">
-          <button className="primary" onClick={onSignupClick}>
+          <button className="primary" onClick={onStartFreeTest}>
             <FaRocket className="btn-icon" />
             Start Free Test
           </button>

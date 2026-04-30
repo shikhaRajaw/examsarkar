@@ -41,11 +41,23 @@ function AppContent() {
   const handleLoginClick = () => {
     const hasSession = Boolean(localStorage.getItem("token") || localStorage.getItem("user"));
     if (hasSession) {
-      // open payment as modal when already logged in
-      showPaymentModal({ plan: 'Subscription', price: 499 });
+      // if already logged in, navigate to dashboard
+      navigate("/dashboard");
       return;
     }
 
+    setAuthMode("login");
+  };
+
+  const handleStartFreeTest = () => {
+    const hasSession = Boolean(localStorage.getItem("token") || localStorage.getItem("user"));
+    if (hasSession) {
+      // if logged in, go to test series
+      navigate("/test-series");
+      return;
+    }
+
+    // if not logged in, show login modal
     setAuthMode("login");
   };
 
@@ -80,7 +92,7 @@ function AppContent() {
             {/* HERO */}
             <div ref={heroRef}>
               <HeroSlider
-                onSignupClick={() => setAuthMode("signup")}
+                onStartFreeTest={handleStartFreeTest}
                 onLoginClick={handleLoginClick}
               />
             </div>
@@ -91,7 +103,10 @@ function AppContent() {
             {/* <FreeTest /> */}
             <HowItWorks />
             <Testimonials />
-            <CTA />
+            <CTA
+              onStartFreeTest={handleStartFreeTest}
+              onExploreTestSeries={() => navigate("/test-series")}
+            />
 
             {/* SCROLL TARGET */}
             <div ref={plansRef}></div>
