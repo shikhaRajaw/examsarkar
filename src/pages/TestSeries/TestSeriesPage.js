@@ -46,7 +46,6 @@ export default function TestSeriesPage() {
       <div className="test-container">
         <div className="test-inner">
 
-          {/* 🔥 CAROUSEL FIRST */}
           <div className="carousel">
             <div
               className="carousel-track"
@@ -77,18 +76,16 @@ export default function TestSeriesPage() {
             </div>
           </div>
 
-          {/*  HERO BELOW */}
           <div className="hero">
             <h1>Crack UPSC with Structured Test Series</h1>
             <p>Practice daily. Analyze deeply. Improve consistently.</p>
           </div>
 
-          {/* TRUST */}
           <p className="trust-line">
             Built for serious aspirants • Based on real UPSC pattern
           </p>
 
-          {/* PLANS */}
+          {/* KEEP SAME */}
           <PlanSection title="Daily Plan" price={99} type="daily" />
           <PlanSection title="Weekly Plan" price={299} type="weekly" />
           <PlanSection title="Monthly Plan" price={799} type="monthly" highlight />
