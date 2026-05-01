@@ -23,10 +23,15 @@ const isAllowedOrigin = (origin) => {
   if (!origin) return true;
   try {
     const parsed = new URL(origin);
+    const allowedHosts = new Set([
+      "localhost",
+      "127.0.0.1",
+      "examsarkar.com",
+      "www.examsarkar.com"
+    ]);
     return (
       configuredOrigins.includes(origin) ||
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
+      allowedHosts.has(parsed.hostname) ||
       parsed.hostname.endsWith(".netlify.app")
     );
   } catch {
