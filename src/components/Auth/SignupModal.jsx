@@ -1,5 +1,6 @@
 import "./SignupModal.css";
 import { FaTimes } from "react-icons/fa";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; // ✅ ADD THIS
 import { registerUser } from "../../api/authApi";
@@ -10,6 +11,8 @@ export default function SignupModal({ isOpen, onClose, switchToLogin }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -135,19 +138,39 @@ export default function SignupModal({ isOpen, onClose, switchToLogin }) {
             onChange={(e) => handleChange("phone", e.target.value)}
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={(e) => handleChange("password", e.target.value)}
-          />
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={form.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOff /> : <Eye />}
+            </button>
+          </div>
 
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            value={form.confirmPassword}
-            onChange={(e) => handleChange("confirmPassword", e.target.value)}
-          />
+          <div className="password-field">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              value={form.confirmPassword}
+              onChange={(e) => handleChange("confirmPassword", e.target.value)}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              aria-label="Toggle confirm password visibility"
+            >
+              {showConfirmPassword ? <EyeOff /> : <Eye />}
+            </button>
+          </div>
 
           {/* ERROR */}
           {error && (

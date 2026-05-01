@@ -1,5 +1,6 @@
 import "./SignupModal.css";
 import { FaTimes } from "react-icons/fa";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../../api/authApi";
@@ -10,6 +11,7 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -88,12 +90,22 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
             onChange={(e) => handleChange("email", e.target.value)}
           />
 
-          <input
-            placeholder="Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => handleChange("password", e.target.value)}
-          />
+          <div className="password-field">
+            <input
+              placeholder="Password"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOff /> : <Eye />}
+            </button>
+          </div>
 
           {/* ERROR */}
           {error && (
