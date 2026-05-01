@@ -11,7 +11,7 @@
   
   # Netlify production env
   [env.production]
-    REACT_APP_BACKEND_URL = "/.netlify/functions/api"
+    REACT_APP_BACKEND_URL = "/api"
 
 # Redirect all API calls to serverless functions
 [[redirects]]

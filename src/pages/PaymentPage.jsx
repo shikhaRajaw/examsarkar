@@ -1,23 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./PaymentPage.css";
+import { buildApiUrl } from "../utils/apiBaseUrl";
 
 const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || "";
-
-// Auto-detect backend URL for Netlify or local dev
-const getApiUrl = () => {
-  if (window.location.hostname.includes('.netlify.app')) {
-    return `${window.location.protocol}//${window.location.host}/.netlify/functions/api`;
-  }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:5000`;
-};
-
-const API_URL = getApiUrl();
 
 function loadScript(src) {
   return new Promise((resolve) => {
@@ -46,7 +32,7 @@ export default function PaymentPage() {
       const token = localStorage.getItem("token");
       if (!token) return;
       try {
-        const res = await fetch(`${API_URL}/api/payment/status`, {
+        const res = await fetch(buildApiUrl('/api/payment/status'), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -63,7 +49,7 @@ export default function PaymentPage() {
     setLoading(true);
     const amountPaise = priceNumber ? Math.round(priceNumber * 100) : 49900;
 
-    const res = await fetch(`${API_URL}/api/payment/create-order`, {
+    const res = await fetch(buildApiUrl('/api/payment/create-order'), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
       body: JSON.stringify({ amount: amountPaise }) // amount in paise
@@ -92,7 +78,7 @@ export default function PaymentPage() {
       order_id: data.order.id,
       handler: async function (response) {
         // verify on server
-        const verify = await fetch(`${API_URL}/api/payment/verify`, {
+        const verify = await fetch(buildApiUrl('/api/payment/verify'), {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
           body: JSON.stringify(response)

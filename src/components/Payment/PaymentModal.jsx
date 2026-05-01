@@ -1,23 +1,9 @@
 import React, { useState } from 'react';
 import './../../pages/PaymentPage.css';
 import { createRoot } from 'react-dom/client';
+import { buildApiUrl } from '../../utils/apiBaseUrl';
 
 const RAZORPAY_KEY = process.env.REACT_APP_RAZORPAY_KEY_ID || '';
-
-// Auto-detect backend URL for Netlify or local dev
-const getApiUrl = () => {
-  if (window.location.hostname.includes('.netlify.app')) {
-    return `${window.location.protocol}//${window.location.host}/.netlify/functions/api`;
-  }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:5000`;
-};
-
-const API_URL = getApiUrl();
 
 function loadScript(src) {
   return new Promise((resolve) => {
@@ -47,7 +33,7 @@ export default function PaymentModal({ plan = 'Subscription', price = 499, onClo
     const amountPaise = Math.round(Number(price) * 100);
 
     try {
-      const res = await fetch(`${API_URL}/api/payment/create-order`, {
+      const res = await fetch(buildApiUrl('/api/payment/create-order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
         body: JSON.stringify({ amount: amountPaise })
@@ -75,7 +61,7 @@ export default function PaymentModal({ plan = 'Subscription', price = 499, onClo
         description: plan,
         order_id: data.order.id,
         handler: async function (response) {
-          const verify = await fetch(`${API_URL}/api/payment/verify`, {
+          const verify = await fetch(buildApiUrl('/api/payment/verify'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
             body: JSON.stringify(response)

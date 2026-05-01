@@ -1,14 +1,9 @@
-const getApiBaseUrl = () => {
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:5000`;
-};
+import { buildApiUrl } from "./apiBaseUrl";
 
 const LEGACY_STORAGE_KEY = "examSarkarAdminTests";
 
 const request = async (path, method = "GET", payload) => {
-  const API_BASE_URL = getApiBaseUrl();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     method,
     headers: {
       "Content-Type": "application/json"

@@ -2,21 +2,7 @@ import "./Navbar.css";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, LogOut } from "lucide-react";
-
-// Auto-detect backend URL for Netlify or local dev
-const getApiUrl = () => {
-  if (window.location.hostname.includes('.netlify.app')) {
-    return `${window.location.protocol}//${window.location.host}/.netlify/functions/api`;
-  }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:5000`;
-};
-
-const API_URL = getApiUrl();
+import { buildApiUrl } from "../../utils/apiBaseUrl";
 
 export default function Navbar({
   onLoginClick,
@@ -66,7 +52,7 @@ export default function Navbar({
       // Read token from storage
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${API_URL}/api/user/profile`,
+        buildApiUrl("/api/user/profile"),
         {
           method: "GET",
           headers: {

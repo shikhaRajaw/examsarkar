@@ -1,21 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronRight, Radio } from 'lucide-react';
 import './Dashboard.css';
-
-// Auto-detect backend URL for Netlify or local dev
-const getApiUrl = () => {
-  if (window.location.hostname.includes('.netlify.app')) {
-    return `${window.location.protocol}//${window.location.host}/.netlify/functions/api`;
-  }
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:5000`;
-};
-
-const API_URL = getApiUrl();
+import { buildApiUrl } from '../../utils/apiBaseUrl';
 
 const Dashboard = () => {
   const [userName, setUserName] = useState('User');
@@ -66,7 +52,7 @@ const Dashboard = () => {
         const token = localStorage.getItem('token');
 
         // Fetch profile
-        const profileRes = await fetch(`${API_URL}/api/user/profile`, {
+        const profileRes = await fetch(buildApiUrl('/api/user/profile'), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token || ''}`,
@@ -80,7 +66,7 @@ const Dashboard = () => {
         }
 
         // fetch stats
-        const statsRes = await fetch(`${API_URL}/api/stats`);
+        const statsRes = await fetch(buildApiUrl('/api/stats'));
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
           setDashboardStats(statsJson.stats || null);
