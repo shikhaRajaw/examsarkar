@@ -1,5 +1,5 @@
 import "./Navbar.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, LogOut } from "lucide-react";
 import { buildApiUrl } from "../../utils/apiBaseUrl";
@@ -25,11 +25,37 @@ export default function Navbar({
   }, []);
 
   // ✅ Fetch profile data when dropdown opens
+  const fetchProfileData = useCallback(async () => {
+    try {
+      // Read token from storage
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+      const response = await fetch(buildApiUrl("/api/user/profile"), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token || ""}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch profile");
+      }
+
+      const data = await response.json();
+      // server returns { profile: { ... } }
+      setProfileData(data.profile);
+    } catch (error) {
+      console.error("Profile fetch error:", error);
+      // Keep showing the locally stored user details if the profile request fails.
+      setProfileData((current) => current || user);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (profileDropdown && user && !profileData) {
       fetchProfileData();
     }
-  }, [profileDropdown, user, profileData]);
+  }, [profileDropdown, user, profileData, fetchProfileData]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -45,36 +71,6 @@ export default function Navbar({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [profileDropdown]);
-
-  const fetchProfileData = async () => {
-    try {
-      
-      // Read token from storage
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
-      const response = await fetch(
-        buildApiUrl("/api/user/profile"),
-        {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token || ""}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch profile");
-      }
-
-      const data = await response.json();
-      // server returns { profile: { ... } }
-      setProfileData(data.profile);
-    } catch (error) {
-      console.error("Profile fetch error:", error);
-      // Keep showing the locally stored user details if the profile request fails.
-      setProfileData((current) => current || user);
-    }
-  };
 
   // ✅ Logout function
   const handleLogout = () => {

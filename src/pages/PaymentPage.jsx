@@ -17,7 +17,6 @@ function loadScript(src) {
 
 export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null);
   const navigate = useNavigate();
 
   const location = useLocation();
@@ -61,14 +60,12 @@ export default function PaymentPage() {
 
     const data = await res.json();
     if (!res.ok) {
-      setStatus({ error: data.message || "Failed to create order" });
       setLoading(false);
       return;
     }
 
     const ok = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
     if (!ok) {
-      setStatus({ error: "Failed to load payment gateway" });
       setLoading(false);
       return;
     }
@@ -91,8 +88,6 @@ export default function PaymentPage() {
         const v = await verify.json();
         if (verify.ok && v.success) {
           navigate("/dashboard");
-        } else {
-          setStatus({ error: v.message || "Payment verification failed" });
         }
       },
       modal: { ondismiss: function () { setLoading(false); } }
