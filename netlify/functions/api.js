@@ -29,6 +29,7 @@ const isAllowedOrigin = (origin) => {
       "localhost",
       "127.0.0.1",
       "examsarkar.com",
+      "examsarkar.vercel.app",
       "www.examsarkar.com"
     ]);
     return (
