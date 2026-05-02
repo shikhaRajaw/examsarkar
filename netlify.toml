@@ -4,6 +4,9 @@
   functions = "netlify/functions"
   publish = "build"
 
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
 [env]
   # Local development env
   [env.dev]
