@@ -5,7 +5,6 @@ import Navbar from "./components/Navbar/Navbar";
 import HeroSlider from "./components/HeroSlider/HeroSlider";
 import Tiles from "./components/Tiles/Tiles";
 import WhyUs from "./components/WhyUs/WhyUs";
-// import FreeTest from "./components/FreeTest/FreeTest";
 import HowItWorks from "./components/HowItWorks/HowItWorks";
 import Testimonials from "./components/Testimonials/Testimonials";
 import CTA from "./components/CTA/CTA";
@@ -20,27 +19,30 @@ import PaymentPage from "./pages/PaymentPage";
 
 import "./App.css";
 
-
-// 🔥 NEW WRAPPER COMPONENT (handles navigation)
 function AppContent() {
   const [authMode, setAuthMode] = useState(null);
+  const navigate = useNavigate();
 
-  // listen for global events to open auth modals (used by PaymentModal)
+  // ✅ Global modal trigger (keep same)
   useEffect(() => {
     const handler = (e) => {
       const mode = e?.detail?.mode;
-      if (mode === 'login' || mode === 'signup') setAuthMode(mode);
+      if (mode === "login" || mode === "signup") {
+        setAuthMode(mode);
+      }
     };
-    window.addEventListener('openAuthModal', handler);
-    return () => window.removeEventListener('openAuthModal', handler);
+
+    window.addEventListener("openAuthModal", handler);
+    return () => window.removeEventListener("openAuthModal", handler);
   }, []);
 
-  const navigate = useNavigate();
-
+  // ✅ Login handler
   const handleLoginClick = () => {
-    const hasSession = Boolean(localStorage.getItem("token") || localStorage.getItem("user"));
+    const hasSession = Boolean(
+      localStorage.getItem("token") || localStorage.getItem("user")
+    );
+
     if (hasSession) {
-      // if already logged in, navigate to dashboard
       navigate("/dashboard");
       return;
     }
@@ -48,19 +50,20 @@ function AppContent() {
     setAuthMode("login");
   };
 
+  // ✅ Free test handler
   const handleStartFreeTest = () => {
-    const hasSession = Boolean(localStorage.getItem("token") || localStorage.getItem("user"));
+    const hasSession = Boolean(
+      localStorage.getItem("token") || localStorage.getItem("user")
+    );
+
     if (hasSession) {
-      // if logged in, go to test series
       navigate("/test-series");
       return;
     }
 
-    // if not logged in, show login modal
     setAuthMode("login");
   };
 
-  // refs for smooth scroll
   const heroRef = useRef(null);
 
   const scrollToHero = () => {
@@ -68,70 +71,85 @@ function AppContent() {
   };
 
   return (
-    <Routes>
+    <>
+      <Routes>
 
-      {/* ================= HOME PAGE ================= */}
-      <Route
-        path="/"
-        element={
-          <>
-            {/* NAVBAR */}
-            <Navbar
-              onSignupClick={() => setAuthMode("signup")}
-              onLoginClick={handleLoginClick}
-              onHomeClick={scrollToHero}
-              onPlansClick={() => navigate("/test-series")} // 🔥 CHANGED HERE
-            />
-
-            {/* HERO */}
-            <div ref={heroRef}>
-              <HeroSlider
-                onStartFreeTest={handleStartFreeTest}
+        {/* ================= HOME ================= */}
+        <Route
+          path="/"
+          element={
+            <>
+              <Navbar
+                onSignupClick={() => setAuthMode("signup")}
                 onLoginClick={handleLoginClick}
+                onHomeClick={scrollToHero}
+                onPlansClick={() => navigate("/test-series")}
               />
-            </div>
 
-            {/* MAIN SECTIONS */}
-            <Tiles />
-            <WhyUs />
-            {/* <FreeTest /> */}
-            <HowItWorks />
-            <Testimonials />
-            <CTA
-              onStartFreeTest={handleStartFreeTest}
-              onExploreTestSeries={() => navigate("/test-series")}
+              <div ref={heroRef}>
+                <HeroSlider
+                  onStartFreeTest={handleStartFreeTest}
+                  onLoginClick={handleLoginClick}
+                />
+              </div>
+
+              <Tiles />
+              <WhyUs />
+              <HowItWorks />
+              <Testimonials />
+              <CTA
+                onStartFreeTest={handleStartFreeTest}
+                onExploreTestSeries={() => navigate("/test-series")}
+              />
+              <Footer />
+            </>
+          }
+        />
+
+        {/* ================= TEST SERIES ================= */}
+        <Route
+          path="/test-series"
+          element={
+            <TestSeriesPage
+              onLoginClick={handleLoginClick}
+              onSignupClick={() => setAuthMode("signup")}
             />
+          }
+        />
 
-            {/* FOOTER */}
-            <Footer />
-
-            {/* AUTH MODALS */}
-            <SignupModal
-              isOpen={authMode === "signup"}
-              onClose={() => setAuthMode(null)}
-              switchToLogin={() => setAuthMode("login")}
+        {/* ================= DASHBOARD (🔥 FIX HERE) ================= */}
+        <Route
+          path="/dashboard"
+          element={
+            <Dashboard
+              onLoginClick={handleLoginClick}
+              onSignupClick={() => setAuthMode("signup")}
             />
+          }
+        />
 
-            <LoginModal
-              isOpen={authMode === "login"}
-              onClose={() => setAuthMode(null)}
-              switchToSignup={() => setAuthMode("signup")}
-            />
-          </>
-        }
+        {/* ================= PAYMENT ================= */}
+        <Route path="/payment" element={<PaymentPage />} />
+
+      </Routes>
+
+      {/* ================= MODALS ================= */}
+
+      <SignupModal
+        isOpen={authMode === "signup"}
+        onClose={() => setAuthMode(null)}
+        switchToLogin={() => setAuthMode("login")}
       />
 
-      {/* ================= TEST SERIES PAGE ================= */}
-      <Route path="/test-series" element={<TestSeriesPage />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/payment" element={<PaymentPage />} />
-
-    </Routes>
+      <LoginModal
+        isOpen={authMode === "login"}
+        onClose={() => setAuthMode(null)}
+        switchToSignup={() => setAuthMode("signup")}
+      />
+    </>
   );
 }
 
-
-// 🔥 MAIN APP EXPORT
 function App() {
   return <AppContent />;
 }

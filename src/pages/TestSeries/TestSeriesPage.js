@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar/Navbar";
 import PlanSection from "../../components/PlanCard/PlanSection";
 
-export default function TestSeriesPage() {
+export default function TestSeriesPage({ onLoginClick, onSignupClick }) {
   const navigate = useNavigate();
 
   const slides = [
@@ -38,14 +38,18 @@ export default function TestSeriesPage() {
 
   return (
     <>
+      {/* ✅ Navbar now connected to App.js modal system */}
       <Navbar
         onHomeClick={() => navigate("/")}
-        onPlansClick={() => {}}
+        onPlansClick={() => navigate("/test-series")}
+        onLoginClick={onLoginClick}
+        onSignupClick={onSignupClick}
       />
 
       <div className="test-container">
         <div className="test-inner">
 
+          {/* CAROUSEL */}
           <div className="carousel">
             <div
               className="carousel-track"
@@ -76,6 +80,7 @@ export default function TestSeriesPage() {
             </div>
           </div>
 
+          {/* HERO */}
           <div className="hero">
             <h1>Crack UPSC with Structured Test Series</h1>
             <p>Practice daily. Analyze deeply. Improve consistently.</p>
@@ -85,7 +90,7 @@ export default function TestSeriesPage() {
             Built for serious aspirants • Based on real UPSC pattern
           </p>
 
-          {/* KEEP SAME */}
+          {/* PLANS */}
           <PlanSection title="Daily Plan" price={99} type="daily" />
           <PlanSection title="Weekly Plan" price={299} type="weekly" />
           <PlanSection title="Monthly Plan" price={799} type="monthly" highlight />
