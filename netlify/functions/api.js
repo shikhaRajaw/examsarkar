@@ -485,9 +485,21 @@ app.post("/api/payment/create-order", verifyToken, async (req, res) => {
       return res.status(503).json({ message: "Payment service is not configured yet." });
     }
 
-    const { amount } = req.body || {};
+    const { amount, planKey, planName } = req.body || {};
     if (!amount || typeof amount !== "number") {
       return res.status(400).json({ message: "Amount (in paise) is required." });
+    }
+
+    if (!planKey || !/^(daily|weekly|monthly):(gs|csat|combo|all)$/.test(planKey)) {
+      return res.status(400).json({ message: "Invalid plan key." });
+    }
+
+    if (!planName || String(planName).trim().length > 100) {
+      return res.status(400).json({ message: "Invalid plan name." });
+    }
+
+    if (amount < 100 || amount > 500000) {
+      return res.status(400).json({ message: "Invalid amount." });
     }
 
     const uid = req.user.uid;
@@ -499,7 +511,11 @@ app.post("/api/payment/create-order", verifyToken, async (req, res) => {
       amount,
       currency: "INR",
       receipt,
-      payment_capture: 1
+      payment_capture: 1,
+      notes: {
+        planKey,
+        planName
+      }
     });
 
     await database.ref(`payments/${order.id}`).set({
@@ -508,11 +524,18 @@ app.post("/api/payment/create-order", verifyToken, async (req, res) => {
       amount: order.amount,
       currency: order.currency,
       receipt: order.receipt,
+      planKey,
+      planName,
       status: "created",
       createdAt: new Date().toISOString()
     });
 
-    await database.ref(`userPayments/${uid}/${order.id}`).set({ status: "created", createdAt: new Date().toISOString() });
+    await database.ref(`userPayments/${uid}/${order.id}`).set({
+      status: "created",
+      createdAt: new Date().toISOString(),
+      planKey,
+      planName
+    });
 
     return res.status(201).json({ message: "Order created", order, key_id: process.env.RAZORPAY_KEY_ID });
   } catch (error) {
@@ -538,12 +561,32 @@ app.post("/api/payment/verify", verifyToken, async (req, res) => {
     }
 
     const paymentRef = database.ref(`payments/${razorpay_order_id}`);
-    await paymentRef.update({ status: "paid", paymentId: razorpay_payment_id, paidAt: new Date().toISOString() });
+    const paidAt = new Date().toISOString();
+    await paymentRef.update({ status: "paid", paymentId: razorpay_payment_id, paidAt });
 
     const p = await paymentRef.get();
     const uid = p.val()?.uid;
+    const planKey = p.val()?.planKey || null;
+    const planName = p.val()?.planName || null;
     if (uid) {
-      await database.ref(`userPayments/${uid}/${razorpay_order_id}`).update({ status: "paid", paymentId: razorpay_payment_id, paidAt: new Date().toISOString() });
+      await database.ref(`userPayments/${uid}/${razorpay_order_id}`).update({
+        status: "paid",
+        paymentId: razorpay_payment_id,
+        paidAt,
+        planKey,
+        planName
+      });
+
+      if (planKey) {
+        await database.ref(`userPurchases/${uid}/${razorpay_order_id}`).set({
+          orderId: razorpay_order_id,
+          paymentId: razorpay_payment_id,
+          paidAt,
+          planKey,
+          planName,
+          status: "paid"
+        });
+      }
     }
 
     return res.status(200).json({ success: true });

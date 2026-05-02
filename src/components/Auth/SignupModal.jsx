@@ -2,6 +2,7 @@ import "./SignupModal.css";
 import { FaTimes } from "react-icons/fa";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { registerUser } from "../../api/authApi";
 
 export default function SignupModal({ isOpen, onClose, switchToLogin, planData }) {
@@ -10,6 +11,20 @@ export default function SignupModal({ isOpen, onClose, switchToLogin, planData }
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const navigate = useNavigate();
+
+  const buildPaymentPath = (plan) => {
+    const params = new URLSearchParams({
+      plan: plan.title,
+      price: String(plan.price),
+      period: plan.type || "daily",
+      planKey: plan.planKey || `${String(plan.type || "daily").toLowerCase()}:${String(plan.title || "").toLowerCase()}`,
+      planName: plan.planName || `${String(plan.type || "Daily").charAt(0).toUpperCase() + String(plan.type || "Daily").slice(1)} ${plan.title}`,
+      autoPay: "1"
+    });
+
+    return `/payment?${params.toString()}`;
+  };
 
   const [form, setForm] = useState({
     firstName: "",
@@ -71,13 +86,11 @@ export default function SignupModal({ isOpen, onClose, switchToLogin, planData }
       // ✅ CLOSE MODAL
       onClose();
 
-      // ✅ OPEN PAYMENT POPUP OR GO TO DASHBOARD
+      // ✅ GO TO PAYMENT PAGE OR DASHBOARD
       if (planData?.title && planData?.price) {
-        window.dispatchEvent(new CustomEvent('openPaymentModal', {
-          detail: { plan: planData }
-        }));
+        navigate(buildPaymentPath(planData), { replace: true });
       } else {
-        window.location.href = "/dashboard";
+        navigate("/dashboard", { replace: true });
       }
 
       // RESET FORM
