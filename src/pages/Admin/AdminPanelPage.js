@@ -242,6 +242,7 @@ export default function AdminPanelPage({ initialRole = ROLE_SUPER_ADMIN, lockRol
     access: "free",
     date: "",
     file: null,
+    subject: "gs",
     totalQuestions: "",
     marksPerQuestion: "",
     totalMarks: "",
@@ -603,6 +604,7 @@ export default function AdminPanelPage({ initialRole = ROLE_SUPER_ADMIN, lockRol
         id: `test-${Date.now()}`,
         testName: formState.testName.trim(),
         type: formState.type,
+        subject: formState.subject,
         access: formState.access,
         date: formState.type === "daily-quiz" ? formState.date : "",
         questionCount,
@@ -628,6 +630,7 @@ export default function AdminPanelPage({ initialRole = ROLE_SUPER_ADMIN, lockRol
       setFormState({
         testName: "",
         type: "daily",
+          subject: "gs",
         access: "free",
         date: "",
         file: null,
@@ -799,6 +802,17 @@ export default function AdminPanelPage({ initialRole = ROLE_SUPER_ADMIN, lockRol
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="daily-quiz">Daily Quiz</option>
+                </select>
+              </label>
+              <label>
+                Subject / Plan Tag
+                <select
+                  value={formState.subject}
+                  onChange={(event) => handleFieldChange("subject", event.target.value)}
+                >
+                  <option value="gs">GS / GE</option>
+                  <option value="csat">CSAT</option>
+                  <option value="all">All Access</option>
                 </select>
               </label>
 

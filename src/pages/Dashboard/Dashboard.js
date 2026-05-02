@@ -10,36 +10,7 @@ const Dashboard = () => {
   const [userName, setUserName] = useState('User');
   const [searchQuery, setSearchQuery] = useState('');
   const [dashboardStats, setDashboardStats] = useState(null);
-
-  const testSeries = [
-    {
-      id: 1,
-      title: 'Prelims Test Series',
-      subtitle: 'Topic-wise and Full Length Prelims tests',
-      icon: '📋',
-      bgColor: '#E8F0FE',
-      buttonColor: '#5B6BFF',
-      buttonText: 'Explore',
-    },
-    {
-      id: 2,
-      title: 'CSAT Test Series',
-      subtitle: 'Sharpen your aptitude and reasoning skills',
-      icon: '🎓',
-      bgColor: '#E0F7F0',
-      buttonColor: '#10B981',
-      buttonText: 'Explore',
-    },
-    {
-      id: 3,
-      title: 'Full Mock Tests',
-      subtitle: 'Full length tests that simulate the real UPSC exam',
-      icon: '💻',
-      bgColor: '#F3E8FF',
-      buttonColor: '#A855F7',
-      buttonText: 'Explore',
-    },
-  ];
+  const [purchaseData, setPurchaseData] = useState({ loading: true, purchasedPlans: [], accessibleTests: [] });
 
   const liveTestUsers = [
     { name: 'User1', avatar: '👨' },
@@ -52,13 +23,13 @@ const Dashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const accessToken = localStorage.getItem('accessToken');
 
-        // Fetch profile
+        // FETCH PROFILE
         const profileRes = await fetch(buildApiUrl('/api/user/profile'), {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token || ''}`,
+            'Authorization': `Bearer ${accessToken || ''}`,
             'Content-Type': 'application/json'
           }
         });
@@ -68,14 +39,39 @@ const Dashboard = () => {
           setUserName((profileData.profile && profileData.profile.firstName) || 'User');
         }
 
-        // fetch stats
+        // FETCH STATS
         const statsRes = await fetch(buildApiUrl('/api/stats'));
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
           setDashboardStats(statsJson.stats || null);
         }
+
+        // FETCH UNLOCKED TESTS FOR THE CURRENT USER
+        if (accessToken) {
+          const testsRes = await fetch(buildApiUrl('/api/user/tests'), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (testsRes.ok) {
+            const testsJson = await testsRes.json();
+            setPurchaseData({
+              loading: false,
+              purchasedPlans: Array.isArray(testsJson.purchasedPlans) ? testsJson.purchasedPlans : [],
+              accessibleTests: Array.isArray(testsJson.accessibleTests) ? testsJson.accessibleTests : []
+            });
+          } else {
+            setPurchaseData({ loading: false, purchasedPlans: [], accessibleTests: [] });
+          }
+        } else {
+          setPurchaseData({ loading: false, purchasedPlans: [], accessibleTests: [] });
+        }
       } catch (err) {
         console.error('Dashboard load error:', err);
+        setPurchaseData({ loading: false, purchasedPlans: [], accessibleTests: [] });
       }
     };
 
@@ -91,6 +87,19 @@ const Dashboard = () => {
     { day: 'Sat', completed: true },
     { day: 'Sun', completed: false },
   ];
+
+  const seriesTheme = {
+    gs: { bgColor: '#E8F0FE', icon: '📋', color: '#5B6BFF', label: 'GS / GE' },
+    csat: { bgColor: '#E0F7F0', icon: '🎓', color: '#10B981', label: 'CSAT' },
+    combo: { bgColor: '#F3E8FF', icon: '💻', color: '#A855F7', label: 'Combo' },
+    all: { bgColor: '#FFF7ED', icon: '✨', color: '#F59E0B', label: 'All Access' }
+  };
+
+  const unlockedSeries = purchaseData.purchasedPlans.length > 0
+    ? purchaseData.purchasedPlans
+    : [];
+
+  const unlockedTests = purchaseData.purchasedPlans.length > 0 ? purchaseData.accessibleTests.slice(0, 6) : [];
    
 
   return (
@@ -170,32 +179,86 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Explore Test Series */}
+          {/* Purchased Test Series */}
           <div className="explore-section">
             <div className="section-header">
-              <h2 className="section-title">Explore Test Series</h2>
-              <p className="section-subtitle">Choose the right test series for your preparation</p>
+              <h2 className="section-title">Your Purchased Test Series</h2>
+              <p className="section-subtitle">
+                {purchaseData.loading
+                  ? 'Loading unlocked tests...'
+                  : unlockedSeries.length > 0
+                    ? 'Your payment has unlocked the series below.'
+                    : 'Buy a plan to unlock the tests uploaded by admin.'}
+              </p>
             </div>
 
             <div className="test-series-grid">
-              {testSeries.map((series) => (
-                <div 
-                  key={series.id} 
-                  className="test-series-card"
-                  style={{ backgroundColor: series.bgColor }}
-                >
-                  <div className="series-icon">{series.icon}</div>
-                  <h3 className="series-title">{series.title}</h3>
-                  <p className="series-subtitle">{series.subtitle}</p>
-                  <button 
-                    className="series-button"
-                    style={{ color: series.buttonColor }}
-                  >
-                    {series.buttonText} <ChevronRight size={18} />
+              {purchaseData.loading ? (
+                <div className="test-series-card loading-card">
+                  <h3 className="series-title">Checking your access...</h3>
+                  <p className="series-subtitle">Please wait while we load your purchases.</p>
+                </div>
+              ) : unlockedSeries.length > 0 ? (
+                unlockedSeries.map((series) => {
+                  const subjectKey = series.planSubject || 'all';
+                  const theme = seriesTheme[subjectKey] || seriesTheme.all;
+                  const previewTests = Array.isArray(series.tests) ? series.tests.slice(0, 3).map((test) => test.testName).join(' • ') : '';
+
+                  return (
+                    <div
+                      key={series.planKey}
+                      className="test-series-card"
+                      style={{ backgroundColor: theme.bgColor }}
+                    >
+                      <div className="series-icon">{theme.icon}</div>
+                      <h3 className="series-title">{series.planName || `${series.planPeriod} ${theme.label}`}</h3>
+                      <p className="series-subtitle">{series.count} tests unlocked</p>
+                      <p className="series-subtitle series-preview">{previewTests || 'New tests will appear here when admin uploads them.'}</p>
+                      <button
+                        className="series-button"
+                        style={{ color: theme.color }}
+                        onClick={() => navigate('/test-series')}
+                      >
+                        Open Series <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="test-series-card empty-series-card">
+                  <div className="series-icon">🔒</div>
+                  <h3 className="series-title">No purchased tests yet</h3>
+                  <p className="series-subtitle">Complete a payment to unlock the GS / CSAT series added by admin.</p>
+                  <button className="series-button" style={{ color: '#5B6BFF' }} onClick={() => navigate('/test-series')}>
+                    View Plans <ChevronRight size={18} />
                   </button>
                 </div>
-              ))}
+              )}
             </div>
+
+            {unlockedTests.length > 0 && (
+              <div className="unlocked-tests-panel">
+                <div className="unlocked-tests-header">
+                  <h3>Unlocked Tests</h3>
+                  <span>{purchaseData.accessibleTests.length} available</span>
+                </div>
+                <div className="unlocked-tests-list">
+                  {unlockedTests.map((test) => (
+                    <div key={test.id} className="unlocked-test-item">
+                      <div>
+                        <p className="unlocked-test-title">{test.testName}</p>
+                        <p className="unlocked-test-meta">
+                          {String(test.subject || 'all').toUpperCase()} • {String(test.type || 'daily').toUpperCase()} • {test.questionCount} questions
+                        </p>
+                      </div>
+                      <button className="review-btn" type="button" onClick={() => navigate('/test-series')}>
+                        Start
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Daily Challenge */}

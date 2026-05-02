@@ -4,9 +4,45 @@ import { useState, useEffect } from "react";
 
 import Navbar from "../../components/Navbar/Navbar";
 import PlanSection from "../../components/PlanCard/PlanSection";
+import SignupModal from "../../components/Auth/SignupModal";
+import LoginModal from "../../components/Auth/LoginModal";
+import { preloadRazorpayCheckout, showPaymentModal } from "../../components/Payment/PaymentModal";
 
 export default function TestSeriesPage({ onLoginClick, onSignupClick }) {
   const navigate = useNavigate();
+  const [authMode, setAuthMode] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null); // Store which plan user selected
+
+  // Listen for global events to open auth modals (used by plan cards)
+  useEffect(() => {
+    const handler = (e) => {
+      const mode = e?.detail?.mode;
+      const planData = e?.detail?.plan;
+      if (mode === 'login' || mode === 'signup') {
+        setSelectedPlan(planData); // Store plan data
+        setAuthMode(mode);
+      }
+    };
+    window.addEventListener('openAuthModal', handler);
+    return () => window.removeEventListener('openAuthModal', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const planData = e?.detail?.plan;
+      if (!planData?.title || !planData?.price) return;
+      showPaymentModal({
+        plan: planData.title,
+        price: planData.price,
+        period: planData.type || 'daily',
+        planKey: planData.planKey || `${(planData.type || 'daily').toLowerCase()}:${String(planData.title || '').toLowerCase()}`,
+        planName: planData.planName || `${String(planData.type || 'Daily').charAt(0).toUpperCase() + String(planData.type || 'Daily').slice(1)} ${planData.title}`
+      });
+    };
+
+    window.addEventListener('openPaymentModal', handler);
+    return () => window.removeEventListener('openPaymentModal', handler);
+  }, []);
 
   const slides = [
     {
@@ -35,6 +71,10 @@ export default function TestSeriesPage({ onLoginClick, onSignupClick }) {
 
     return () => clearInterval(interval);
   }, [slides.length]);
+
+  useEffect(() => {
+    preloadRazorpayCheckout();
+  }, []);
 
   return (
     <>
@@ -97,6 +137,21 @@ export default function TestSeriesPage({ onLoginClick, onSignupClick }) {
 
         </div>
       </div>
+
+      {/* AUTH MODALS */}
+      <SignupModal
+        isOpen={authMode === "signup"}
+        onClose={() => setAuthMode(null)}
+        switchToLogin={() => setAuthMode("login")}
+        planData={selectedPlan}
+      />
+
+      <LoginModal
+        isOpen={authMode === "login"}
+        onClose={() => setAuthMode(null)}
+        switchToSignup={() => setAuthMode("signup")}
+        planData={selectedPlan}
+      />
     </>
   );
 }

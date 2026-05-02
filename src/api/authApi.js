@@ -35,33 +35,49 @@ export const registerUser = async ({
     confirmPassword
   });
 
-  // return both user and token so callers can persist auth token
-  return { user: result.user, token: result.token };
+  // Return both user and tokens (accessToken for requests, refreshToken for refresh)
+  return { 
+    user: result.user, 
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken
+  };
 };
 
 export const loginUser = async (email, password) => {
   const result = await request("/api/auth/login", { email, password });
-  // return both user and token so callers can persist auth token
-  return { user: result.user, token: result.token };
+  // Return both user and tokens
+  return { 
+    user: result.user, 
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken
+  };
 };
 
-// ============ ADMIN AUTH ============
-export const ADMIN_TEST_ACCOUNTS = [
-  {
-    label: "Super Admin",
-    email: "admin@examsarkar.com",
-    password: "Admin@123",
-    role: "super-admin"
-  },
-  {
-    label: "Content Admin",
-    email: "content@examsarkar.com",
-    password: "Content@123",
-    role: "content-admin"
-  }
-];
+// Refresh access token using refresh token
+export const refreshAccessToken = async (refreshToken) => {
+  const response = await fetch(buildApiUrl("/api/auth/refresh"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ refreshToken })
+  });
 
-// Mock admin session storage key
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body.message || "Token refresh failed.");
+  }
+
+  return { accessToken: body.accessToken };
+};
+
+// ⚠️ DEPRECATED: Admin credentials should NOT be hardcoded
+// Use a proper backend-based admin authentication system instead
+// For now, these are stubs to prevent import errors
+
+export const ADMIN_TEST_ACCOUNTS = [];
+
 const ADMIN_SESSION_KEY = "admin_session";
 
 export const getAdminSession = () => {
@@ -74,26 +90,7 @@ export const getAdminSession = () => {
 };
 
 export const loginAdminWithTestCredentials = async (email, password) => {
-  // Simple validation against test accounts
-  const account = ADMIN_TEST_ACCOUNTS.find(
-    (acc) => acc.email === email && acc.password === password
-  );
-
-  if (!account) {
-    throw new Error("Invalid admin credentials");
-  }
-
-  // Create session
-  const session = {
-    email: account.email,
-    role: account.role,
-    loginTime: new Date().toISOString()
-  };
-
-  // Store session in localStorage
-  localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
-
-  return session;
+  throw new Error("Admin login is disabled. Please use a proper admin authentication system.");
 };
 
 export const logoutAdmin = () => {

@@ -3,6 +3,11 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const { body, validationResult, param } = require("express-validator");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 dotenv.config();
 
@@ -11,50 +16,170 @@ const { database } = require("./firebaseAdmin");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ============ SECURITY: HELMET.JS ============
+app.use(helmet());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "https://checkout.razorpay.com"],
+    frameSrc: ["https://checkout.razorpay.com"],
+    connectSrc: ["'self'", "https://api.razorpay.com"]
+  }
+}));
+
+// ============ SECURITY: CORS (WHITELIST ONLY) ============
 const configuredOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const isAllowedDevOrigin = (origin) => {
-  try {
-    const parsed = new URL(origin);
-    const { protocol, hostname } = parsed;
-
-    if (protocol !== "http:" && protocol !== "https:") {
-      return false;
-    }
-
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      /^192\.168\.\d+\.\d+$/.test(hostname) ||
-      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
-    );
-  } catch {
-    return false;
-  }
-};
+// In production, ONLY use explicitly configured origins
+// In development, allow localhost only
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:5000",
+  ...configuredOrigins
+];
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
+        // Same-origin requests (e.g., direct POST from HTML form)
         return callback(null, true);
       }
 
-      if (configuredOrigins.includes(origin) || isAllowedDevOrigin(origin)) {
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error("CORS blocked for this origin."));
-    }
+      // ⚠️ REJECT all other origins
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error("CORS policy: Origin not allowed"), false);
+    },
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    maxAge: 3600
   })
 );
-// capture raw body for webhook verification
-app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 
+// ============ SECURITY: BODY PARSING WITH LIMITS ============
+app.use(express.json({ 
+  limit: "1mb",
+  verify: (req, res, buf) => { 
+    // Capture raw body for webhook signature verification
+    req.rawBody = buf; 
+  } 
+}));
+
+// ============ SECURITY: RATE LIMITING ============
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: "Too many authentication attempts. Please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Don't apply limiter to health check
+    return req.path === "/api/health";
+  }
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // 10 payment requests per hour per IP
+  message: "Too many payment attempts. Please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // General rate limit
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use(generalLimiter);
+
+// ============ JWT SECRET & TOKEN CONFIG ============
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString("hex");
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomBytes(32).toString("hex");
+const JWT_EXPIRATION = "15m"; // Short-lived access tokens
+const JWT_REFRESH_EXPIRATION = "7d"; // Long-lived refresh tokens
+
+// ============ PASSWORD VALIDATION ============
+const validatePassword = (password) => {
+  if (!password || password.length < 8) {
+    return "Password must be at least 8 characters long";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password must contain at least one uppercase letter";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password must contain at least one lowercase letter";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "Password must contain at least one number";
+  }
+  if (!/[!@#$%^&*]/.test(password)) {
+    return "Password must contain at least one special character (!@#$%^&*)";
+  }
+  return null;
+};
+
+// ============ TOKEN GENERATION ============
+const generateTokens = (uid, email, firstName, lastName) => {
+  const accessToken = jwt.sign(
+    { uid, email, firstName, lastName, type: "access" },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRATION }
+  );
+
+  const refreshToken = jwt.sign(
+    { uid, email, type: "refresh" },
+    JWT_REFRESH_SECRET,
+    { expiresIn: JWT_REFRESH_EXPIRATION }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// ============ MIDDLEWARE: VERIFY JWT TOKEN ============
+const verifyToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Unauthorized: No token provided" });
+    }
+
+    const token = authHeader.substring(7); // Remove "Bearer "
+    
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Ensure it's an access token, not a refresh token
+      if (decoded.type !== "access") {
+        return res.status(401).json({ message: "Unauthorized: Invalid token type" });
+      }
+      
+      req.user = decoded;
+      next();
+    } catch (jwtError) {
+      if (jwtError.name === "TokenExpiredError") {
+        return res.status(401).json({ message: "Token expired. Please refresh." });
+      }
+      return res.status(401).json({ message: "Unauthorized: Invalid token" });
+    }
+  } catch (error) {
+    console.error("Token verification error:", error.message);
+    return res.status(401).json({ message: "Unauthorized: Token verification failed" });
+  }
+};
+
+// ============ RAZORPAY CLIENT ============
 const getRazorpayClient = () => {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -69,31 +194,93 @@ const getRazorpayClient = () => {
   });
 };
 
+// ============ HELPER FUNCTIONS ============
 const toEmailKey = (email) =>
   Buffer.from(email.trim().toLowerCase(), "utf8").toString("base64url");
 
-const sha256 = (text) =>
-  crypto.createHash("sha256").update(text || "").digest("hex");
+const ADMIN_TESTS_PATH = "adminTests";
+const USER_PURCHASES_PATH = "userPurchases";
 
-// ✅ MIDDLEWARE: Verify Token
-const verifyToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided." });
-    }
-
-    const token = authHeader.substring(7); // Remove "Bearer "
-    const tokenData = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
-
-    req.user = tokenData;
-    next();
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return res.status(401).json({ message: "Invalid token." });
-  }
+const normalizeList = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (value && typeof value === "object") return Object.values(value).filter(Boolean);
+  return [];
 };
 
+const normalizePlanPeriod = (value) => {
+  const period = String(value || "").trim().toLowerCase();
+  if (period === "daily" || period === "weekly" || period === "monthly") {
+    return period;
+  }
+  return "daily";
+};
+
+const normalizePlanSubject = (value) => {
+  const subject = String(value || "").trim().toLowerCase();
+
+  if (subject === "gs" || subject === "ge") return "gs";
+  if (subject === "csat") return "csat";
+  if (subject === "combo" || subject === "both") return "combo";
+  if (subject === "all" || subject === "any" || subject === "general") return "all";
+
+  return subject || "all";
+};
+
+const buildPlanKey = (planPeriod, planSubject) => `${normalizePlanPeriod(planPeriod)}:${normalizePlanSubject(planSubject)}`;
+
+const parsePlanKey = (planKey) => {
+  const [planPeriod, planSubject] = String(planKey || "").split(":");
+  return {
+    planPeriod: normalizePlanPeriod(planPeriod),
+    planSubject: normalizePlanSubject(planSubject)
+  };
+};
+
+const getTestPeriod = (test) => {
+  const period = normalizePlanPeriod(test?.type);
+  return period;
+};
+
+const getTestSubject = (test) => normalizePlanSubject(test?.subject || test?.planSubject || test?.segment || "all");
+
+const getAllowedPeriods = (planPeriod) => {
+  if (planPeriod === "monthly") return ["daily", "weekly", "monthly", "daily-quiz"];
+  if (planPeriod === "weekly") return ["daily", "weekly", "daily-quiz"];
+  return ["daily", "daily-quiz"];
+};
+
+const getAllowedSubjects = (planSubject) => {
+  if (planSubject === "combo") return ["gs", "csat", "combo", "all"];
+  if (planSubject === "all") return ["gs", "csat", "combo", "all"];
+  return [planSubject, "all"];
+};
+
+const getPurchasePlan = (purchase) => {
+  const fromKey = parsePlanKey(purchase?.planKey);
+  return {
+    planPeriod: fromKey.planPeriod,
+    planSubject: fromKey.planSubject,
+    planKey: buildPlanKey(fromKey.planPeriod, fromKey.planSubject),
+    planName: purchase?.planName || `${fromKey.planPeriod[0].toUpperCase()}${fromKey.planPeriod.slice(1)} ${fromKey.planSubject.toUpperCase()}`
+  };
+};
+
+const testMatchesPurchase = (test, purchase) => {
+  if (!test || !purchase) return false;
+
+  const testPeriod = getTestPeriod(test);
+  const testSubject = getTestSubject(test);
+  const allowedPeriods = getAllowedPeriods(purchase.planPeriod);
+  const allowedSubjects = getAllowedSubjects(purchase.planSubject);
+
+  if (test.access === "free") return true;
+  if (!allowedPeriods.includes(testPeriod)) return false;
+  if (testSubject === "all") return true;
+
+  return allowedSubjects.includes(testSubject);
+};
+
+// ============ PUBLIC ENDPOINTS ============
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     ok: true,
@@ -109,90 +296,434 @@ app.get('/api/payment/config', (req, res) => {
     return res.status(200).json({ configured: Boolean(razorpay) });
   } catch (err) {
     console.error('Config check error', err);
-    return res.status(500).json({ configured: false });
+    return res.status(500).json({ configured: false, message: "Configuration check failed" });
   }
 });
 
-// Create Razorpay order (authenticated)
-app.post("/api/payment/create-order", verifyToken, async (req, res) => {
+// ============ AUTH ENDPOINTS ============
+
+// REGISTER (Public)
+app.post(
+  "/api/auth/register",
+  authLimiter,
+  [
+    body("firstName").trim().isLength({ min: 1, max: 50 }).escape(),
+    body("lastName").trim().isLength({ min: 1, max: 50 }).escape(),
+    body("email").isEmail().normalizeEmail(),
+    body("phone").trim().matches(/^[0-9\-\+\s]{10,}$/),
+    body("password").isLength({ min: 8 }),
+    body("confirmPassword").isLength({ min: 8 })
+  ],
+  async (req, res) => {
+    try {
+      // ⚠️ CHECK VALIDATION ERRORS
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Invalid input data" });
+      }
+
+      const {
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        confirmPassword
+      } = req.body;
+
+      // ⚠️ PASSWORD VALIDATION
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ message: passwordError });
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailKey = toEmailKey(normalizedEmail);
+
+      // ⚠️ CHECK EMAIL UNIQUENESS
+      const emailRef = database.ref(`usersByEmail/${emailKey}`);
+      const existingUser = await emailRef.get();
+      if (existingUser.exists()) {
+        // Don't leak that email exists
+        return res.status(400).json({ message: "Unable to create account. Please try again." });
+      }
+
+      const uid = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+
+      // ⚠️ HASH PASSWORD WITH BCRYPT
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      const userRecord = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: normalizedEmail,
+        phone: phone.trim(),
+        passwordHash,
+        createdAt,
+        updatedAt: createdAt
+      };
+
+      // ⚠️ ATOMIC TRANSACTION: Reserve email
+      const emailReservation = await emailRef.transaction((currentValue) => {
+        if (currentValue === null) {
+          return uid;
+        }
+        return; // Abort transaction
+      });
+
+      if (!emailReservation.committed) {
+        return res.status(400).json({ message: "Unable to create account. Please try again." });
+      }
+
+      try {
+        await database.ref(`users/${uid}`).set(userRecord);
+      } catch (writeError) {
+        await emailRef.remove().catch(() => {});
+        throw writeError;
+      }
+
+      // ⚠️ GENERATE JWT TOKENS
+      const { accessToken, refreshToken } = generateTokens(uid, normalizedEmail, firstName, lastName);
+
+      // ⚠️ STORE REFRESH TOKEN IN DATABASE (optional: for token revocation)
+      await database.ref(`userTokens/${uid}/refresh`).set({
+        token: crypto.createHash("sha256").update(refreshToken).digest("hex"),
+        createdAt: new Date().toISOString()
+      });
+
+      return res.status(201).json({
+        message: "Registration successful",
+        accessToken,
+        refreshToken,
+        user: {
+          uid,
+          firstName: userRecord.firstName,
+          lastName: userRecord.lastName,
+          email: userRecord.email,
+          phone: userRecord.phone,
+          createdAt: userRecord.createdAt
+        }
+      });
+    } catch (error) {
+      console.error("Register error:", error.message);
+      return res.status(500).json({ message: "Registration failed. Please try again later." });
+    }
+  }
+);
+
+// LOGIN (Public)
+app.post(
+  "/api/auth/login",
+  authLimiter,
+  [
+    body("email").isEmail().normalizeEmail(),
+    body("password").isLength({ min: 8 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
+
+      const { email, password } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailKey = toEmailKey(normalizedEmail);
+
+      // ⚠️ LOOKUP USER BY EMAIL
+      const emailSnapshot = await database.ref(`usersByEmail/${emailKey}`).get();
+      if (!emailSnapshot.exists()) {
+        // Don't leak that email doesn't exist (use generic message)
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const uid = emailSnapshot.val();
+      const userSnapshot = await database.ref(`users/${uid}`).get();
+
+      if (!userSnapshot.exists()) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const user = userSnapshot.val();
+
+      // ⚠️ COMPARE PASSWORD WITH BCRYPT
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // ⚠️ GENERATE JWT TOKENS
+      const { accessToken, refreshToken } = generateTokens(uid, user.email, user.firstName, user.lastName);
+
+      // ⚠️ STORE REFRESH TOKEN HASH IN DATABASE
+      await database.ref(`userTokens/${uid}/refresh`).set({
+        token: crypto.createHash("sha256").update(refreshToken).digest("hex"),
+        createdAt: new Date().toISOString()
+      });
+
+      return res.status(200).json({
+        message: "Login successful",
+        accessToken,
+        refreshToken,
+        user: {
+          uid,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          createdAt: user.createdAt
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error.message);
+      return res.status(500).json({ message: "Login failed. Please try again later." });
+    }
+  }
+);
+
+// REFRESH TOKEN
+app.post("/api/auth/refresh", [
+  body("refreshToken").notEmpty()
+], async (req, res) => {
   try {
-    const razorpay = getRazorpayClient();
-    if (!razorpay) {
-      return res.status(503).json({ message: "Payment service is not configured yet." });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: "Invalid request" });
     }
 
-    const { amount } = req.body || {};
-    if (!amount || typeof amount !== "number") {
-      return res.status(400).json({ message: "Amount (in paise) is required." });
+    const { refreshToken } = req.body;
+
+    try {
+      const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+
+      if (decoded.type !== "refresh") {
+        return res.status(401).json({ message: "Invalid token type" });
+      }
+
+      // ⚠️ OPTIONAL: Verify refresh token is in database and not revoked
+      const tokenRef = database.ref(`userTokens/${decoded.uid}/refresh`);
+      const tokenSnapshot = await tokenRef.get();
+
+      if (!tokenSnapshot.exists()) {
+        return res.status(401).json({ message: "Token revoked or invalid" });
+      }
+
+      const storedHash = tokenSnapshot.val()?.token;
+      const providedHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+      if (storedHash !== providedHash) {
+        return res.status(401).json({ message: "Token invalid" });
+      }
+
+      // ⚠️ ISSUE NEW ACCESS TOKEN
+      const userSnapshot = await database.ref(`users/${decoded.uid}`).get();
+      if (!userSnapshot.exists()) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const user = userSnapshot.val();
+      const { accessToken } = generateTokens(decoded.uid, user.email, user.firstName, user.lastName);
+
+      return res.status(200).json({
+        message: "Token refreshed",
+        accessToken
+      });
+    } catch (jwtError) {
+      return res.status(401).json({ message: "Invalid or expired refresh token" });
     }
-
-    const uid = req.user.uid || '';
-    // Razorpay receipt has a max length of 40. Build a short receipt id.
-    const shortUid = uid.replace(/-/g, '').slice(0, 12);
-    const ts = String(Date.now()).slice(-6);
-    const receipt = `rcpt_${shortUid}_${ts}`;
-
-    const order = await razorpay.orders.create({
-      amount,
-      currency: "INR",
-      receipt,
-      payment_capture: 1
-    });
-
-    // store order record
-    await database.ref(`payments/${order.id}`).set({
-      uid,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      receipt: order.receipt,
-      status: "created",
-      createdAt: new Date().toISOString()
-    });
-
-    await database.ref(`userPayments/${uid}/${order.id}`).set({ status: "created", createdAt: new Date().toISOString() });
-
-    return res.status(201).json({ message: "Order created", order, key_id: process.env.RAZORPAY_KEY_ID });
   } catch (error) {
-    console.error("Create order error:", error);
-    return res.status(500).json({ message: "Failed to create order" });
+    console.error("Token refresh error:", error.message);
+    return res.status(500).json({ message: "Token refresh failed" });
   }
 });
 
-// Verify payment (client posts payment details after checkout)
-app.post("/api/payment/verify", verifyToken, async (req, res) => {
+// ============ USER PROFILE ENDPOINTS ============
+
+app.get("/api/user/profile", verifyToken, async (req, res) => {
   try {
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body || {};
-    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-      return res.status(400).json({ message: "Missing payment details." });
+    const { uid } = req.user;
+
+    const userSnapshot = await database.ref(`users/${uid}`).get();
+
+    if (!userSnapshot.exists()) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const generated_signature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
-      .digest('hex');
+    const user = userSnapshot.val();
 
-    if (generated_signature !== razorpay_signature) {
-      return res.status(400).json({ message: "Invalid signature." });
-    }
-
-    // mark payment as paid
-    const paymentRef = database.ref(`payments/${razorpay_order_id}`);
-    await paymentRef.update({ status: "paid", paymentId: razorpay_payment_id, paidAt: new Date().toISOString() });
-
-    const p = await paymentRef.get();
-    const uid = p.val()?.uid;
-    if (uid) {
-      await database.ref(`userPayments/${uid}/${razorpay_order_id}`).update({ status: "paid", paymentId: razorpay_payment_id, paidAt: new Date().toISOString() });
-    }
-
-    return res.status(200).json({ success: true });
+    return res.status(200).json({
+      profile: {
+        uid,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        createdAt: user.createdAt
+      }
+    });
   } catch (error) {
-    console.error("Verify payment error:", error);
-    return res.status(500).json({ message: "Verification failed." });
+    console.error("Profile fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch profile" });
   }
 });
 
-// Check payment status for user
+// ============ PAYMENT ENDPOINTS ============
+
+// CREATE PAYMENT ORDER
+app.post(
+  "/api/payment/create-order",
+  verifyToken,
+  paymentLimiter,
+  [
+    body("amount").isInt({ min: 1 }),
+    body("planKey").matches(/^(daily|weekly|monthly):(gs|csat|combo|all)$/),
+    body("planName").trim().isLength({ min: 1, max: 100 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Invalid payment data" });
+      }
+
+      const razorpay = getRazorpayClient();
+      if (!razorpay) {
+        return res.status(503).json({ message: "Payment service unavailable" });
+      }
+
+      const { amount, planKey, planName } = req.body;
+      const uid = req.user.uid;
+
+      // ⚠️ VALIDATE AMOUNT (prevent negative or zero amounts)
+      if (amount < 100 || amount > 500000) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      const purchasePlan = getPurchasePlan({ planKey, planName });
+
+      // ⚠️ BUILD SAFE RECEIPT ID
+      const shortUid = uid.replace(/-/g, '').slice(0, 12);
+      const ts = String(Date.now()).slice(-6);
+      const receipt = `rcpt_${shortUid}_${ts}`;
+
+      const order = await razorpay.orders.create({
+        amount,
+        currency: "INR",
+        receipt,
+        payment_capture: 1,
+        notes: {
+          planKey: purchasePlan.planKey,
+          planName: purchasePlan.planName
+        }
+      });
+
+      // ⚠️ STORE ORDER RECORD (without sensitive info)
+      await database.ref(`payments/${order.id}`).set({
+        uid,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        planKey: purchasePlan.planKey,
+        planName: purchasePlan.planName,
+        status: "created",
+        createdAt: new Date().toISOString()
+      });
+
+      await database.ref(`userPayments/${uid}/${order.id}`).set({
+        status: "created",
+        createdAt: new Date().toISOString(),
+        planKey: purchasePlan.planKey,
+        planName: purchasePlan.planName
+      });
+
+      return res.status(201).json({
+        message: "Order created",
+        order,
+        key_id: process.env.RAZORPAY_KEY_ID
+      });
+    } catch (error) {
+      console.error("Create order error:", error.message);
+      return res.status(500).json({ message: "Failed to create payment order" });
+    }
+  }
+);
+
+// VERIFY PAYMENT
+app.post(
+  "/api/payment/verify",
+  verifyToken,
+  [
+    body("razorpay_payment_id").matches(/^pay_[a-zA-Z0-9]+$/),
+    body("razorpay_order_id").matches(/^order_[a-zA-Z0-9]+$/),
+    body("razorpay_signature").isLength({ min: 64, max: 64 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Invalid payment signature" });
+      }
+
+      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+      // ⚠️ VERIFY SIGNATURE
+      const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+      const generated_signature = crypto
+        .createHmac('sha256', keySecret)
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest('hex');
+
+      if (generated_signature !== razorpay_signature) {
+        console.warn(`Invalid signature for order ${razorpay_order_id}`);
+        return res.status(400).json({ message: "Payment verification failed" });
+      }
+
+      // ⚠️ MARK PAYMENT AS PAID
+      const paymentRef = database.ref(`payments/${razorpay_order_id}`);
+      const paidAt = new Date().toISOString();
+      await paymentRef.update({ status: "paid", paymentId: razorpay_payment_id, paidAt });
+
+      const p = await paymentRef.get();
+      const uid = p.val()?.uid;
+      const planKey = p.val()?.planKey || null;
+      const planName = p.val()?.planName || null;
+
+      if (uid) {
+        await database.ref(`userPayments/${uid}/${razorpay_order_id}`).update({
+          status: "paid",
+          paymentId: razorpay_payment_id,
+          paidAt,
+          planKey,
+          planName
+        });
+
+        if (planKey) {
+          await database.ref(`${USER_PURCHASES_PATH}/${uid}/${razorpay_order_id}`).set({
+            orderId: razorpay_order_id,
+            paymentId: razorpay_payment_id,
+            paidAt,
+            planKey,
+            planName,
+            status: "paid"
+          });
+        }
+      }
+
+      return res.status(200).json({ success: true, message: "Payment verified" });
+    } catch (error) {
+      console.error("Verify payment error:", error.message);
+      return res.status(500).json({ message: "Payment verification failed" });
+    }
+  }
+);
+
+// PAYMENT STATUS
 app.get("/api/payment/status", verifyToken, async (req, res) => {
   try {
     const uid = req.user.uid;
@@ -208,230 +739,152 @@ app.get("/api/payment/status", verifyToken, async (req, res) => {
 
     return res.status(200).json({ paid: false });
   } catch (error) {
-    console.error("Payment status error:", error);
-    return res.status(500).json({ message: "Failed to check payment status." });
+    console.error("Payment status error:", error.message);
+    return res.status(500).json({ message: "Failed to check payment status" });
   }
 });
 
-// Razorpay webhook endpoint
-app.post('/api/payment/webhook', async (req, res) => {
+// RAZORPAY WEBHOOK
+app.post('/api/payment/webhook', (req, res) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+    if (!webhookSecret) {
+      console.warn('Webhook secret not configured');
+      return res.status(400).send('webhook_not_configured');
+    }
+
     const signature = req.headers['x-razorpay-signature'];
     const body = req.rawBody || Buffer.from(JSON.stringify(req.body));
 
-    const expected = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+    // ⚠️ VERIFY WEBHOOK SIGNATURE
+    const expected = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(body)
+      .digest('hex');
+
     if (signature !== expected) {
       console.warn('Invalid webhook signature');
-      return res.status(400).send('invalid signature');
+      return res.status(400).send('invalid_signature');
     }
 
     const event = req.body;
+
+    // ⚠️ PROCESS ONLY RELEVANT EVENTS
     if (event.event === 'payment.captured' || event.event === 'payment.authorized') {
       const payload = event.payload?.payment?.entity;
       const orderId = payload?.order_id;
       const paymentId = payload?.id;
+
       if (orderId) {
-        await database.ref(`payments/${orderId}`).update({ status: 'paid', paymentId, paidAt: new Date().toISOString() });
-        const p = await database.ref(`payments/${orderId}`).get();
-        const uid = p.val()?.uid;
-        if (uid) await database.ref(`userPayments/${uid}/${orderId}`).update({ status: 'paid', paymentId, paidAt: new Date().toISOString() });
+        database.ref(`payments/${orderId}`).update({
+          status: 'paid',
+          paymentId,
+          paidAt: new Date().toISOString()
+        }).catch(err => console.error('Webhook DB update error:', err));
+
+        database.ref(`payments/${orderId}`).get().then(p => {
+          const uid = p.val()?.uid;
+          if (uid) {
+            database.ref(`userPayments/${uid}/${orderId}`).update({
+              status: 'paid',
+              paymentId,
+              paidAt: new Date().toISOString()
+            }).catch(err => console.error('Webhook user payment update error:', err));
+          }
+        });
       }
     }
 
     return res.status(200).json({ status: 'ok' });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return res.status(500).send('error');
+    console.error('Webhook error:', error.message);
+    return res.status(500).send('webhook_error');
   }
 });
 
-app.post("/api/auth/register", async (req, res) => {
+// ============ TEST ENDPOINTS ============
+
+app.get("/api/user/tests", verifyToken, async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      confirmPassword
-    } = req.body || {};
+    const uid = req.user.uid;
+    const [testsSnapshot, purchasesSnapshot] = await Promise.all([
+      database.ref(ADMIN_TESTS_PATH).get(),
+      database.ref(`${USER_PURCHASES_PATH}/${uid}`).get()
+    ]);
 
-    if (
-      !firstName ||
-      !lastName ||
-      !email ||
-      !phone ||
-      !password ||
-      !confirmPassword
-    ) {
-      return res.status(400).json({ message: "All fields are required." });
-    }
+    const tests = normalizeList(testsSnapshot.val());
+    const purchases = normalizeList(purchasesSnapshot.val()).filter((purchase) => purchase.status === "paid");
+    const purchasedPlans = purchases.map(getPurchasePlan).filter((purchase) => purchase.planKey);
 
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: "Password mismatch." });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters." });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const emailKey = toEmailKey(normalizedEmail);
-    const emailRef = database.ref(`usersByEmail/${emailKey}`);
-    const uid = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    const userRecord = {
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: normalizedEmail,
-      phone: phone.trim(),
-      passwordHash: sha256(password),
-      confirmPasswordHash: sha256(confirmPassword),
-      createdAt
-    };
-
-    const emailReservation = await emailRef.transaction((currentValue) => {
-      if (currentValue === null) {
-        return uid;
-      }
-
-      return;
-    }, false);
-
-    if (!emailReservation.committed) {
-      return res.status(409).json({ message: "This email is already registered." });
-    }
-
-    try {
-      await database.ref(`users/${uid}`).set(userRecord);
-    } catch (writeError) {
-      await emailRef.remove().catch(() => {});
-      throw writeError;
-    }
-
-    // ✅ CREATE TOKEN
-    const tokenData = {
-      uid,
-      email: normalizedEmail,
-      firstName: userRecord.firstName,
-      lastName: userRecord.lastName
-    };
-    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64");
-
-    return res.status(201).json({
-      message: "Registration successful.",
-      token,
-      user: {
-        uid,
-        firstName: userRecord.firstName,
-        lastName: userRecord.lastName,
-        email: userRecord.email,
-        phone: userRecord.phone,
-        createdAt: userRecord.createdAt
-      }
+    const accessibleTests = tests.filter((test) => {
+      if (test.access === "free") return true;
+      return purchasedPlans.some((purchase) => testMatchesPurchase(test, purchase));
     });
-  } catch (error) {
-    console.error("Register error:", error);
-    return res.status(500).json({ message: "Registration failed. Please try again." });
-  }
-});
 
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const emailKey = toEmailKey(normalizedEmail);
-    const emailSnapshot = await database.ref(`usersByEmail/${emailKey}`).get();
-
-    if (!emailSnapshot.exists()) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
-
-    const uid = emailSnapshot.val();
-    const userSnapshot = await database.ref(`users/${uid}`).get();
-
-    if (!userSnapshot.exists()) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
-
-    const user = userSnapshot.val();
-    if (user.passwordHash !== sha256(password)) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    }
-
-    // ✅ CREATE TOKEN
-    const tokenData = {
-      uid,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName
-    };
-    const token = Buffer.from(JSON.stringify(tokenData)).toString("base64");
+    const planSummaries = purchasedPlans.map((purchase) => {
+      const seriesTests = accessibleTests.filter((test) => testMatchesPurchase(test, purchase));
+      return {
+        ...purchase,
+        count: seriesTests.length,
+        tests: seriesTests
+      };
+    });
 
     return res.status(200).json({
-      message: "Login successful.",
-      token,
-      user: {
-        uid,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        createdAt: user.createdAt
-      }
+      purchasedPlans: planSummaries,
+      accessibleTests
     });
   } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ message: "Login failed. Please try again." });
+    console.error("User tests fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to load tests" });
   }
 });
 
-// ✅ NEW ENDPOINT: Get User Profile
-app.get("/api/user/profile", verifyToken, async (req, res) => {
+app.get("/api/admin/tests", async (req, res) => {
   try {
-    const { uid } = req.user;
+    const snapshot = await database.ref(ADMIN_TESTS_PATH).get();
+    return res.status(200).json({ tests: normalizeList(snapshot.val()) });
+  } catch (error) {
+    console.error("Load admin tests error:", error.message);
+    return res.status(500).json({ message: "Failed to load tests" });
+  }
+});
 
-    const userSnapshot = await database.ref(`users/${uid}`).get();
-
-    if (!userSnapshot.exists()) {
-      return res.status(404).json({ message: "User not found." });
+app.put("/api/admin/tests", [
+  body("tests").isArray().notEmpty()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: "Invalid test data" });
     }
 
-    const user = userSnapshot.val();
+    const { tests } = req.body;
 
-    return res.status(200).json({
-      message: "Profile retrieved successfully.",
-      profile: {
-        uid,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phoneNumber: user.phone,
-        createdAt: user.createdAt
+    // ⚠️ VALIDATE EACH TEST
+    for (const test of tests) {
+      if (!test.id || !test.title) {
+        return res.status(400).json({ message: "Each test must have id and title" });
       }
-    });
+    }
+
+    await database.ref(ADMIN_TESTS_PATH).set(tests);
+    return res.status(200).json({ tests });
   } catch (error) {
-    console.error("Profile fetch error:", error);
-    return res.status(500).json({ message: "Failed to fetch profile." });
+    console.error("Save admin tests error:", error.message);
+    return res.status(500).json({ message: "Failed to save tests" });
   }
 });
 
-// ✅ NEW ENDPOINT: Basic stats for dashboard
+// ============ STATS ENDPOINT ============
+
 app.get("/api/stats", async (req, res) => {
   try {
-    // Count total registered users
     const usersSnapshot = await database.ref(`users`).get();
     const totalRegistered = usersSnapshot.exists()
       ? Object.keys(usersSnapshot.val()).length
       : 0;
 
-    // Heuristic/sample values for other stats (can be replaced with real collectors)
     const weeklyIncrease = Math.max(0, Math.floor(totalRegistered * 0.01));
     const liveNow = Math.max(0, Math.floor(totalRegistered * 0.02));
     const currentStreak = 7;
@@ -440,7 +893,6 @@ app.get("/api/stats", async (req, res) => {
     const attemptPercentage = quizzesTotal > 0 ? Math.round((quizzesAttempted / quizzesTotal) * 100) : 0;
 
     return res.status(200).json({
-      message: "Stats retrieved successfully.",
       stats: {
         totalRegistered,
         weeklyIncrease,
@@ -452,11 +904,26 @@ app.get("/api/stats", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Stats fetch error:", error);
-    return res.status(500).json({ message: "Failed to fetch stats." });
+    console.error("Stats fetch error:", error.message);
+    return res.status(500).json({ message: "Failed to fetch stats" });
   }
+});
+
+// ============ 404 HANDLER ============
+app.use((req, res) => {
+  res.status(404).json({ message: "Endpoint not found" });
+});
+
+// ============ ERROR HANDLER ============
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.message);
+  res.status(err.status || 500).json({ 
+    message: "An error occurred. Please try again later." 
+  });
 });
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`JWT_SECRET configured: ${Boolean(process.env.JWT_SECRET)}`);
+  console.log(`RAZORPAY configured: ${Boolean(process.env.RAZORPAY_KEY_ID)}`);
 });

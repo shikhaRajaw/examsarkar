@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
-import { FiKey, FiLock, FiLogIn, FiMail, FiShield } from "react-icons/fi";
-import { ADMIN_TEST_ACCOUNTS, loginAdminWithTestCredentials } from "../../api/authApi";
+import { useState } from "react";
+import { FiKey, FiLogIn, FiMail } from "react-icons/fi";
 import "./AdminLoginPage.css";
 
 export default function AdminLoginPage({ onLoginSuccess }) {
@@ -9,30 +8,10 @@ export default function AdminLoginPage({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const credentialsPreview = useMemo(
-    () =>
-      ADMIN_TEST_ACCOUNTS.map((account) => ({
-        title: account.label,
-        email: account.email,
-        password: account.password,
-        role: account.role
-      })),
-    []
-  );
-
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError("");
-    setIsSubmitting(true);
-
-    try {
-      const session = await loginAdminWithTestCredentials(email, password);
-      onLoginSuccess(session);
-    } catch (submitError) {
-      setError(submitError.message || "Unable to login. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setError("⚠️ Admin authentication has been disabled for security reasons. Hardcoded credentials are no longer supported. Please implement a proper backend-based admin authentication system.");
+    setIsSubmitting(false);
   };
 
   return (
@@ -50,21 +29,17 @@ export default function AdminLoginPage({ onLoginSuccess }) {
           </p>
 
           <div className="credential-list">
-            {credentialsPreview.map((item) => (
-              <article key={item.role} className="credential-card">
-                <h3>
-                  {item.role === "super-admin" ? <FiShield /> : <FiLock />} {item.title}
-                </h3>
-                <p>Email: {item.email}</p>
-                <p>Password: {item.password}</p>
-              </article>
-            ))}
+            <article className="credential-card" style={{ background: '#fff3cd', borderLeft: '4px solid #ff6b6b' }}>
+              <h3>⚠️ Security Notice</h3>
+              <p>Hardcoded admin credentials have been disabled for security reasons.</p>
+              <p>Please configure a proper backend-based admin authentication system.</p>
+            </article>
           </div>
         </section>
 
         <section className="admin-login-card">
           <h2>
-            <FiLogIn /> Secure Admin Sign In
+            <FiLogIn /> Admin Sign In (Disabled)
           </h2>
 
           <form onSubmit={handleSubmit} className="admin-login-form">

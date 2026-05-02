@@ -1,10 +1,21 @@
 import "./SubPlanCard.css";
 import { ArrowRight } from "lucide-react";
-import { showPaymentModal } from "../Payment/PaymentModal";
+import { preloadRazorpayCheckout, showPaymentModal } from "../Payment/PaymentModal";
 
 export default function SubPlanCard({ title, price, features, type }) {
   const handlePayment = () => {
-    showPaymentModal({ plan: title, price });
+    const isLoggedIn = Boolean(localStorage.getItem('token') || localStorage.getItem('user'));
+    const planPeriod = type || 'daily';
+    const planSubject = title.toLowerCase();
+    const planKey = `${planPeriod}:${planSubject}`;
+    const planName = `${planPeriod.charAt(0).toUpperCase() + planPeriod.slice(1)} ${title}`;
+
+    if (!isLoggedIn) {
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { mode: 'login', plan: { title, price, type: planPeriod, planKey, planName } } }));
+      return;
+    }
+
+    showPaymentModal({ plan: title, price, period: planPeriod, planKey, planName });
   };
 
   return (
@@ -27,7 +38,7 @@ export default function SubPlanCard({ title, price, features, type }) {
 </ul>
 
       {/* CTA */}
-      <button className="buy-btn" onClick={handlePayment}>
+      <button className="buy-btn" onMouseEnter={() => preloadRazorpayCheckout()} onFocus={() => preloadRazorpayCheckout()} onClick={handlePayment}>
         Get Started
         <ArrowRight size={16} />
       </button>

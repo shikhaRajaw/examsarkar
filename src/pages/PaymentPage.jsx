@@ -23,6 +23,9 @@ export default function PaymentPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const plan = params.get("plan") || "Subscription";
+  const planPeriod = params.get("period") || "daily";
+  const planKey = params.get("planKey") || `${planPeriod.toLowerCase()}:${String(plan).toLowerCase()}`;
+  const planName = params.get("planName") || `${planPeriod.charAt(0).toUpperCase() + planPeriod.slice(1)} ${plan}`;
   const priceParam = params.get("price");
   const priceNumber = priceParam ? Number(priceParam) : null; // rupees
 
@@ -52,7 +55,7 @@ export default function PaymentPage() {
     const res = await fetch(buildApiUrl('/api/payment/create-order'), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
-      body: JSON.stringify({ amount: amountPaise }) // amount in paise
+      body: JSON.stringify({ amount: amountPaise, planKey, planName }) // amount in paise
     });
 
     const data = await res.json();
@@ -74,7 +77,7 @@ export default function PaymentPage() {
       amount: data.order.amount,
       currency: data.order.currency,
       name: "ExamSarkar",
-      description: plan,
+      description: planName,
       order_id: data.order.id,
       handler: async function (response) {
         // verify on server

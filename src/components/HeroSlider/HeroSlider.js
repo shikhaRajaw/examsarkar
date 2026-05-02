@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./HeroSlider.css";
 import { FaBullseye, FaRocket } from "react-icons/fa";
 
@@ -11,6 +11,8 @@ const images = [
 
 export default function HeroSlider({ onStartFreeTest, onLoginClick }) {
   const [index, setIndex] = useState(0);
+  const currentImage = images[index];
+  const nextImage = useMemo(() => images[(index + 1) % images.length], [index]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -20,17 +22,31 @@ export default function HeroSlider({ onStartFreeTest, onLoginClick }) {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const prefetch = new Image();
+    prefetch.src = nextImage;
+  }, [nextImage]);
+
   return (
     <section className="heroSlider">
 
       {/* BACKGROUND IMAGES */}
-      {images.map((img, i) => (
-        <div
-          key={i}
-          className={`bg ${i === index ? "active" : ""}`}
-          style={{ backgroundImage: `url(${img})` }}
-        />
-      ))}
+      <img
+        className="bg active"
+        src={currentImage}
+        alt="UPSC aspirants studying"
+        fetchPriority="high"
+        decoding="async"
+      />
+
+      <img
+        className="bg preloaded"
+        src={nextImage}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+      />
 
       {/* OVERLAY */}
       <div className="overlay"></div>

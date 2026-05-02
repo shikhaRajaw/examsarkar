@@ -285,6 +285,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+  .loading-card,
+  .empty-series-card {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
     gap: 20px;
     border: 1px solid rgba(99, 102, 241, 0.2);
   }
@@ -299,6 +307,10 @@
   .challenge-icon {
     font-size: 40px;
     flex-shrink: 0;
+
+  .series-preview {
+    min-height: 40px;
+  }
   }
   
   .challenge-text {
@@ -310,6 +322,61 @@
     font-weight: 700;
     color: #1f2937;
     margin: 0;
+  }
+
+  .unlocked-tests-panel {
+    margin-top: 20px;
+    padding: 18px;
+    border-radius: 16px;
+    background: rgba(243, 244, 255, 0.72);
+    border: 1px solid rgba(91, 107, 255, 0.14);
+  }
+
+  .unlocked-tests-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .unlocked-tests-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #1f2937;
+  }
+
+  .unlocked-tests-header span {
+    font-size: 12px;
+    color: #6366f1;
+    font-weight: 700;
+  }
+
+  .unlocked-tests-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .unlocked-test-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+  }
+
+  .unlocked-test-title {
+    margin: 0 0 4px 0;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .unlocked-test-meta {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
   }
   
   .challenge-subtitle {

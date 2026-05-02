@@ -110,6 +110,7 @@ export default function PlanSection({ title, price, type, highlight }) {
           title="GS"
           price={getPrice("GS")}
           features={getFeatures(type, "GS")}
+          type={type}
         />
 
         {/* CSAT */}
@@ -117,6 +118,7 @@ export default function PlanSection({ title, price, type, highlight }) {
           title="CSAT"
           price={getPrice("CSAT")}
           features={getFeatures(type, "CSAT")}
+          type={type}
         />
 
         {/* 🔥 COMBO */}
@@ -124,6 +126,7 @@ export default function PlanSection({ title, price, type, highlight }) {
           title="COMBO"
           price={getPrice("COMBO")}
           features={getFeatures(type, "COMBO")}
+          type={type}
         />
 
       </div>

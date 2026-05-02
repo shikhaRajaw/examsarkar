@@ -2,12 +2,9 @@ import "./SignupModal.css";
 import { FaTimes } from "react-icons/fa";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { loginUser } from "../../api/authApi";
 
-export default function LoginModal({ isOpen, onClose, switchToSignup }) {
-  const navigate = useNavigate(); // ✅ ADD THIS
-
+export default function LoginModal({ isOpen, onClose, switchToSignup, planData }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -37,22 +34,29 @@ export default function LoginModal({ isOpen, onClose, switchToSignup }) {
     try {
       setIsSubmitting(true);
 
+      const { user, accessToken, refreshToken } = await loginUser(form.email, form.password);
 
-      const { user, token } = await loginUser(form.email, form.password);
-
-      // ✅ success message
+      // ✅ SUCCESS MESSAGE
       setSuccess(`Welcome ${user.firstName || "back"}, login successful.`);
 
-      // ✅ store user and token in localStorage
+      // ✅ STORE USER AND TOKENS IN LOCALSTORAGE
+      // NOTE: In production, these should be stored in httpOnly cookies instead
       localStorage.setItem("user", JSON.stringify(user));
-      if (token) localStorage.setItem("token", token);
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
 
       // ✅ CLOSE MODAL
       onClose();
 
-      // ✅ REDIRECT TO DASHBOARD after login
+      // ✅ OPEN PAYMENT POPUP OR GO TO DASHBOARD AFTER LOGIN
       setTimeout(() => {
-        navigate("/dashboard");
+        if (planData?.title && planData?.price) {
+          window.dispatchEvent(new CustomEvent('openPaymentModal', {
+            detail: { plan: planData }
+          }));
+        } else {
+          window.location.href = "/dashboard";
+        }
       }, 500);
 
     } catch (apiError) {
