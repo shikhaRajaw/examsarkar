@@ -299,6 +299,7 @@ app.put("/api/admin/tests", async (req, res) => {
 
 // Register endpoint
 app.post("/api/auth/register", async (req, res) => {
+  console.log('[api] POST /api/auth/register - received');
   try {
     const {
       firstName,
@@ -308,6 +309,8 @@ app.post("/api/auth/register", async (req, res) => {
       password,
       confirmPassword
     } = req.body || {};
+
+    console.log('[api] /api/auth/register - payload keys', Object.keys(req.body || {}));
 
     if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
       return res.status(400).json({ message: "All fields are required." });
@@ -337,6 +340,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     // Check if email exists
     const emailSnapshot = await emailRef.get();
+    console.log('[api] /api/auth/register - email snapshot exists', emailSnapshot.exists());
     if (emailSnapshot.exists()) {
       return res.status(400).json({ message: "This email is already registered." });
     }
@@ -367,8 +371,11 @@ app.post("/api/auth/register", async (req, res) => {
 
 // Login endpoint
 app.post("/api/auth/login", async (req, res) => {
+  console.log('[api] POST /api/auth/login - received');
   try {
     const { email, password } = req.body || {};
+
+    console.log('[api] /api/auth/login - payload keys', Object.keys(req.body || {}));
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required." });
@@ -377,6 +384,7 @@ app.post("/api/auth/login", async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     const emailKey = toEmailKey(normalizedEmail);
     const uidSnapshot = await database.ref(`usersByEmail/${emailKey}`).get();
+    console.log('[api] /api/auth/login - uidSnapshot exists', uidSnapshot.exists());
 
     if (!uidSnapshot.exists()) {
       return res.status(401).json({ message: "Invalid email or password." });
@@ -384,6 +392,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const uid = uidSnapshot.val();
     const userSnapshot = await database.ref(`users/${uid}`).get();
+    console.log('[api] /api/auth/login - userSnapshot exists', userSnapshot.exists());
 
     if (!userSnapshot.exists()) {
       return res.status(401).json({ message: "Invalid email or password." });
@@ -392,6 +401,7 @@ app.post("/api/auth/login", async (req, res) => {
     const user = userSnapshot.val();
 
     const bcryptMatches = await bcrypt.compare(password, user.passwordHash || "");
+    console.log('[api] /api/auth/login - bcrypt compare done');
     const shaMatches = user.passwordHash === sha256(password);
 
     if (!bcryptMatches && !shaMatches) {
