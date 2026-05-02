@@ -608,4 +608,5 @@ app.post('/api/payment/webhook', async (req, res) => {
 });
 
 // Export for Netlify
+module.exports.app = app;
 module.exports.handler = serverless(app);
