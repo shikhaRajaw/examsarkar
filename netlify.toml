@@ -1,6 +1,6 @@
 # Netlify configuration for ExamSarkar
 [build]
-  command = "npm run build"
+  command = "npm install --prefix netlify/functions && npm run build"
   functions = "netlify/functions"
   publish = "build"
 
