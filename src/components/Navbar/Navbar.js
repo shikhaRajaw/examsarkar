@@ -50,7 +50,7 @@ export default function Navbar({
     try {
       
       // Read token from storage
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
       const response = await fetch(
         buildApiUrl("/api/user/profile"),
         {
@@ -71,13 +71,16 @@ export default function Navbar({
       setProfileData(data.profile);
     } catch (error) {
       console.error("Profile fetch error:", error);
-      setProfileData(null);
+      // Keep showing the locally stored user details if the profile request fails.
+      setProfileData((current) => current || user);
     }
   };
 
   // ✅ Logout function
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("token");
     setUser(null);
     setProfileData(null);
@@ -92,6 +95,8 @@ export default function Navbar({
     }
     return user?.firstName ? user.firstName[0].toUpperCase() : "U";
   };
+
+  const visibleProfile = profileData || user;
 
   return (
     <header className="navbar">
@@ -149,29 +154,29 @@ export default function Navbar({
                   </div>
                   <div className="profile-info">
                     <h3 className="name">{user.firstName} {user.lastName}</h3>
-                    <p className="email">{profileData?.email || user.email}</p>
+                    <p className="email">{visibleProfile?.email || user.email}</p>
                   </div>
                 </div>
 
                 {/* Profile Info */}
                 <div className="profile-content">
-                  {profileData ? (
+                  {visibleProfile ? (
                     <>
                       <div className="profile-detail">
                         <span className="detail-label">First Name:</span>
-                        <span className="detail-value">{profileData.firstName}</span>
+                        <span className="detail-value">{visibleProfile.firstName}</span>
                       </div>
                       <div className="profile-detail">
                         <span className="detail-label">Last Name:</span>
-                        <span className="detail-value">{profileData.lastName}</span>
+                        <span className="detail-value">{visibleProfile.lastName}</span>
                       </div>
                       <div className="profile-detail">
                         <span className="detail-label">Email:</span>
-                        <span className="detail-value">{profileData.email}</span>
+                        <span className="detail-value">{visibleProfile.email}</span>
                       </div>
                       <div className="profile-detail">
                         <span className="detail-label">Phone:</span>
-                        <span className="detail-value">{profileData.phone || "Not provided"}</span>
+                        <span className="detail-value">{visibleProfile.phone || "Not provided"}</span>
                       </div>
                     </>
                   ) : (

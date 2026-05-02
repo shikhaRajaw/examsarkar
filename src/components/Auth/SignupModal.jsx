@@ -63,6 +63,7 @@ export default function SignupModal({ isOpen, onClose, switchToLogin, planData }
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("token", accessToken);
 
       // ✅ SUCCESS MESSAGE
       setSuccess("Registration successful!");

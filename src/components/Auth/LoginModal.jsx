@@ -44,6 +44,7 @@ export default function LoginModal({ isOpen, onClose, switchToSignup, planData }
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("token", accessToken);
 
       // ✅ CLOSE MODAL
       onClose();

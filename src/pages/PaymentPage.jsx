@@ -32,7 +32,7 @@ export default function PaymentPage() {
   useEffect(() => {
     // if user already paid, redirect to dashboard
     (async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
       if (!token) return;
       try {
         const res = await fetch(buildApiUrl('/api/payment/status'), {
@@ -51,10 +51,11 @@ export default function PaymentPage() {
   const handlePay = async () => {
     setLoading(true);
     const amountPaise = priceNumber ? Math.round(priceNumber * 100) : 49900;
+    const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
 
     const res = await fetch(buildApiUrl('/api/payment/create-order'), {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
       body: JSON.stringify({ amount: amountPaise, planKey, planName }) // amount in paise
     });
 
@@ -83,7 +84,7 @@ export default function PaymentPage() {
         // verify on server
         const verify = await fetch(buildApiUrl('/api/payment/verify'), {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
           body: JSON.stringify(response)
         });
 
@@ -106,12 +107,10 @@ export default function PaymentPage() {
     <div className="payment-page">
       <div className="payment-card">
         <h2>Complete Payment</h2>
-        <p>{plan} — {priceNumber ? `₹${priceNumber}` : `₹499`}</p>
-        {!localStorage.getItem("token") && (
+        {!(localStorage.getItem("accessToken") || localStorage.getItem("token")) && (
           <div className="error">Please login first to continue to payment.</div>
         )}
-        {status?.error && <div className="error">{status.error}</div>}
-        <button className="pay-btn" onClick={handlePay} disabled={loading || !localStorage.getItem("token")}>
+        <button className="pay-btn" onClick={handlePay} disabled={loading || !(localStorage.getItem("accessToken") || localStorage.getItem("token"))}>
           {loading ? "Processing..." : `Pay ${priceNumber ? `₹${priceNumber}` : "₹499"}`}
         </button>
       </div>
