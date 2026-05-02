@@ -1,3 +1,3 @@
-const { app } = require("../netlify/functions/api");
+const { handler } = require("../netlify/functions/api");
 
-module.exports = app;
+module.exports = handler;
