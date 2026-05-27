@@ -232,7 +232,7 @@ export default function TestSeriesPage({ onLoginClick, onSignupClick }) {
           {/* FREE TESTS AT TOP */}
           <section className="free-tests-section">
             <div className="free-tests-header">
-              <h2>Free Tests Uploaded by Admin</h2>
+              <h2>Free Tests Available</h2>
               <p>
                 {freeTestsLoading
                   ? "Loading free tests..."

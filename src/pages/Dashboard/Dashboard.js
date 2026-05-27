@@ -376,35 +376,8 @@ const Dashboard = () => {
 
         {/* Right Section */}
         <div className="dashboard-right">
-          {/* Performance Snapshot */}
-          <div className="performance-card">
-            <div className="card-header">
-              <h3 className="card-title">Your Performance Snapshot</h3>
-              <div className="card-icon">📊</div>
-            </div>
-
-            <div className="performance-tiles">
-              {perfTiles.map((t) => (
-                <div key={t.id} className="perf-tile">
-                  <p className="tile-label">{t.label}</p>
-                  <p className="tile-value">{t.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="performance-chart">
-              <svg viewBox="0 0 100 60" className="chart-svg">
-                <rect x="10" y="40" width="8" height="20" fill="#D1D5DB" />
-                <rect x="22" y="30" width="8" height="30" fill="#D1D5DB" />
-                <rect x="34" y="20" width="8" height="40" fill="#6366F1" />
-                <rect x="46" y="25" width="8" height="35" fill="#D1D5DB" />
-                <text x="50" y="58" fontSize="8" fill="#999">Chart</text>
-              </svg>
-            </div>
-
-            <p className="performance-text">Attempt tests to see your performance insights.</p>
-            <button className="test-now-button" onClick={handleNavigateToTest}>Take a Test Now</button>
-          </div>
+        
+           
 
           {/* Live Test Now */}
           <div className="live-test-card">
@@ -417,7 +390,7 @@ const Dashboard = () => {
             </div>
 
             <p className="live-description">{liveNowUsers} learners are taking</p>
-            <p className="live-test-title">Free Prelims Test – Polity</p>
+            <p className="live-test-title">Free Prelims Test</p>
 
             <div className="live-users">
               {liveTestUsers.map((user, idx) => (

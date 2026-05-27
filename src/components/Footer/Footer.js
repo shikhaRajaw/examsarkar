@@ -57,12 +57,12 @@ export default function Footer() {
         <div className="footer-links">
           <h3>Support</h3>
           <ul>
-            <li><FaArrowRight /> Help Center</li>
+            <li><FaArrowRight /> Contact us @ 9606972603 or helloexamsarkar@gmail.com</li>
             <li><FaArrowRight /> Privacy Policy</li>
             <li><FaArrowRight /> Terms</li>
             <li>
               <button type="button" onClick={() => navigate("/contact")}> 
-                <FaArrowRight /> Contact
+                <FaArrowRight /> Help Center
               </button>
             </li>
           </ul>
